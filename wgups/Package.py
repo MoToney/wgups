@@ -19,7 +19,7 @@ class PackageStatus(Enum):
     DELIVERED = 4
 
 class Package:
-    def __init__(self, package_id:int = 0, address:str = None, city:str =None, zip_code:str =None, state:str ="Utah", deadline:datetime.time =None, weight:float =0, note:str =None, status:PackageStatus =PackageStatus.NOT_READY):
+    def __init__(self, package_id:int = 0, address:str = None, city:str =None, zip_code:str =None, state:str ="Utah", deadline:datetime.time =None, weight:float =0, note:dict =None, status:PackageStatus =PackageStatus.NOT_READY):
         self.package_id = package_id
         self.address = address
         self.city = city
@@ -46,14 +46,6 @@ class Package:
         self.state = state
         self.zip_code = zip_code
 
-    @staticmethod
-    def parse_deadline(deadline_str):
-        if deadline_str.strip().upper() == 'EOD':
-            return None
-        try:
-            return datetime.strptime(deadline_str.strip(), '%H %M %p')
-        except ValueError:
-            raise ValueError('Invalid deadline string')
 
     def __str__(self):
         pass

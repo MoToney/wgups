@@ -1,3 +1,5 @@
+import re
+
 from wgups.datastore.PackageHashMap import PackageHashMap
 from wgups.Package import Package, PackageStatus
 from datetime import datetime
@@ -27,7 +29,7 @@ class PackageLoader(object):
         zip_code = row[4]
         deadline = PackageLoader.parse_deadline(row[5])
         weight = float(row[6])
-        special_notes = row[7]
+        special_notes = PackageLoader.parse_note(row[7])
         status = PackageStatus.NOT_READY
 
         return Package(
@@ -36,18 +38,51 @@ class PackageLoader(object):
 
     @staticmethod
     def parse_deadline(deadline_str) -> Optional[datetime]:
-        print(f"Parsing deadline: '{deadline_str}'")
         if deadline_str.strip().upper() == 'EOD':
             return None
 
         try:
-            return datetime.strptime(deadline_str.strip(),'%I:%M %p')
+            return datetime.strptime(deadline_str.strip(), '%I:%M %p')
         except ValueError:
             raise ValueError('Invalid deadline string')
 
-#test
+    @staticmethod
+    def parse_note(note_str):
+        if not note_str.strip():
+            return {}
 
-hash_map = PackageHashMap(40,1,1,.75)
+        note_str = note_str.lower()
+        parsed = {}
+
+        if "truck" in note_str:
+            match = re.search(r'truck\s*(\d+)', note_str)
+            if match:
+                parsed["required_truck"] = int(match.group(1))
+                print(parsed["required_truck"])
+
+        if "delayed" in note_str:
+            match = re.search(r'\b\d{1,2}:\d{2}\s*(?:am|pm)\b', note_str)
+            if match:
+                time_obj = datetime.strptime(match.group(), '%I:%M %p').time()
+                parsed["delayed_until"] = time_obj
+                print(parsed["delayed_until"])
+
+        if "must be delivered with" in note_str:
+            match = re.findall(r'\d+', note_str)
+            if match:
+                parsed["grouped_packages"] = list(map(int, match))
+                print(parsed["grouped_packages"])
+
+        if "wrong address" in note_str:
+            parsed["wrong_address"] = True
+            print(parsed["wrong_address"])
+
+        return parsed
+
+
+# test
+
+hash_map = PackageHashMap(61, 1, 1, .75)
 package_loader = PackageLoader()
 package_loader.load_from_file("../../data/packages.csv", hash_map)
 print(hash_map)
