@@ -114,7 +114,11 @@ class PackageHashMap:
             if old_status_table[i] is SlotStatus.OCCUPIED:
                 self.add_package(old_packages_table[i])
 
-
+    def __str__(self):
+        count = self.num_items
+        preview_packages = list(self.packages_table)[:3]
+        return (f"PackageHashMap with {count} packages "
+                f"(sample packages: {', '.join(map(str, preview_packages))})")
 
 
 

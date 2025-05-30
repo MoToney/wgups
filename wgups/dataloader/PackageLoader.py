@@ -13,8 +13,7 @@ class PackageLoader(object):
         import csv
         with open(file, 'r') as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
-            header = next(reader)
-            print(f"Header: {header}")
+            next(reader)
             for row in reader:
                 if row:
                     package_hash_map.add_package(PackageLoader.csv_to_package(row=row))
@@ -48,9 +47,6 @@ class PackageLoader(object):
 
     @staticmethod
     def parse_note(note_str):
-        if not note_str.strip():
-            return {}
-
         note_str = note_str.lower()
         parsed = {}
 
@@ -58,31 +54,24 @@ class PackageLoader(object):
             match = re.search(r'truck\s*(\d+)', note_str)
             if match:
                 parsed["required_truck"] = int(match.group(1))
-                print(parsed["required_truck"])
 
         if "delayed" in note_str:
             match = re.search(r'\b\d{1,2}:\d{2}\s*(?:am|pm)\b', note_str)
             if match:
                 time_obj = datetime.strptime(match.group(), '%I:%M %p').time()
                 parsed["delayed_until"] = time_obj
-                print(parsed["delayed_until"])
 
         if "must be delivered with" in note_str:
             match = re.findall(r'\d+', note_str)
             if match:
                 parsed["grouped_packages"] = list(map(int, match))
-                print(parsed["grouped_packages"])
 
         if "wrong address" in note_str:
             parsed["wrong_address"] = True
-            print(parsed["wrong_address"])
 
         return parsed
 
 
 # test
 
-hash_map = PackageHashMap(61, 1, 1, .75)
-package_loader = PackageLoader()
-package_loader.load_from_file("../../data/packages.csv", hash_map)
-print(hash_map)
+

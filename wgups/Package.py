@@ -11,6 +11,8 @@ f.	Gets loaded into the data structure containing all packages
 from enum import Enum
 from datetime import datetime
 
+
+
 class PackageStatus(Enum):
     NOT_READY = 0
     AT_HUB = 1
@@ -29,6 +31,7 @@ class Package:
         self.weight = weight
         self.special_note = note
         self.status = status
+        self.address_w_zip = self.get_address_w_zip()
 
     def set_status(self, status):
         self.status = status
@@ -45,10 +48,24 @@ class Package:
         self.city = city
         self.state = state
         self.zip_code = zip_code
+    def get_address_w_zip(self):
+        address_w_zip = (f"{self.address}({self.zip_code})")
+        return address_w_zip
 
 
     def __str__(self):
-        pass
+        return (f"Package {self.package_id}: "
+                f"{self.status.name.replace('_', ' ').title()} | "
+                f"Address: {self.address}, {self.city}, {self.state}, {self.zip_code} | "
+                f"Deadline: {self.deadline.strftime('%I:%M %p') if self.deadline else 'EOD'} | "
+                f"Weight: {self.weight} | "
+                f"Note: {self.special_note}")
+'''
+package = Package(2, "2510 South Vernice Drive", "Copperas Cove", "76522", "Utah", deadline=datetime.now(), weight=3.0,
+                  note="",status=PackageStatus.NOT_READY)
+print(package.address_w_zip)'''
+
+
 
 
 
