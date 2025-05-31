@@ -31,9 +31,14 @@ class PackageLoader(object):
         special_notes = PackageLoader.parse_note(row[7])
         status = PackageStatus.NOT_READY
 
-        return Package(
+        package = Package(
             package_id=package_id, address=address, city=city, state=state, zip_code=zip_code,
             deadline=deadline, weight=weight, note=special_notes, status=status)
+
+        if "grouped_packages" in special_notes:
+            package.must_be_delivered_with = special_notes["grouped_packages"]
+
+        return package
 
     @staticmethod
     def parse_deadline(deadline_str) -> Optional[datetime]:

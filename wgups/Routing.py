@@ -1,33 +1,63 @@
+from wgups.Package import Package
 from wgups.datastore.DistanceMap import DistanceMap
 from wgups.datastore.PackageHashMap import PackageHashMap, SlotStatus
 from wgups.dataloader.PackageLoader import PackageLoader
 
 
 class Routing:
-    def __init__(self):
-        pass
 
-    def find_nearest_package(self, start, unvisited:PackageHashMap, distance_map:DistanceMap):
+    def __init__(self, distance_map: DistanceMap):
+        self.distance_map = distance_map
+
+    def build_route(self, start:str, packages:PackageHashMap, target:int) -> list[Package]:
+        route = [start]
+        visited_ids = {start}
+        current = start
+
+        while len(visited_ids) < target:
+            next_package = self.find_nearest_package(current, packages, visited_ids)
+            if next_package is None:
+                break
+
+            route.append(next_package)
+            visited_ids.add(next_package.package_id)
+            current = next_package.address_w_zip
+
+            '''if next_package.must_be_delivered_with:
+                if len(next_package.must_be_delivered_with)
+                for pid in next_package.must_be_delivered_with:
+                    package = packages.search_package(pid)
+                    if pid not in visited_ids:
+                        print(package)
+                        route.append(package)
+                        visited_ids.add(package.package_id)'''
+        return route
+
+    def find_nearest_package(self, curr_addr:str, unvisited:PackageHashMap, visited_ids:set):
         closest = float("inf")
         nearest_neighbor = None
-        count = 0
-        for i in range(len(unvisited.packages_table)):
-            if unvisited.status_table[i] is not SlotStatus.OCCUPIED or unvisited.packages_table[i] == start:
+
+        for i,package in enumerate(unvisited.packages_table):
+            package = unvisited.packages_table[i]
+
+            if (unvisited.status_table[i] is not SlotStatus.OCCUPIED
+                    or package is None
+                    or package.package_id in visited_ids
+            ):
                 continue
-            dist = distance_map.get_distance(unvisited.packages_table[i].address_w_zip, start.address_w_zip)
+            dist = self.distance_map.get_distance(curr_addr, package.address_w_zip)
 
             if dist < closest:
                 closest = dist
-                nearest_neighbor = unvisited.packages_table[i]
+                nearest_neighbor = package
+
         return nearest_neighbor
 
 
-
-
-hash_map = PackageHashMap(61, 1, 1, .75)
-packages = PackageLoader.load_from_file("../data/packages.csv", hash_map)
+packages = PackageLoader.load_from_file("../data/packages.csv", PackageHashMap(61, 1, 1, .75))
 distances = DistanceMap("../data/distances.csv")
-routing = Routing()
-neighbor = routing.find_nearest_package(packages.search_package(3),packages, distances)
-print(neighbor)
+routing = Routing(distances)
+route = routing.build_route('HUB',packages, 10)
+
+
 
