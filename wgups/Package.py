@@ -44,8 +44,11 @@ class Package:
         self.weight = weight
         self.special_note = note
         self.status = status
+
         self.address_w_zip = self.get_address_w_zip() # this is for standardization with the addresses in distances.csv
+
         self.must_be_delivered_with: Optional[list[int]] = None
+        self.available_time: Optional[datetime.time] = None
 
 
     def set_status(self, status):

@@ -38,6 +38,9 @@ class PackageLoader(object):
         if "grouped_packages" in special_notes:
             package.must_be_delivered_with = special_notes["grouped_packages"]
 
+        if "available_time" in special_notes:
+            package.available_time = special_notes["available_time"]
+
         return package
 
     @staticmethod
@@ -64,7 +67,7 @@ class PackageLoader(object):
             match = re.search(r'\b\d{1,2}:\d{2}\s*(?:am|pm)\b', note_str)
             if match:
                 time_obj = datetime.strptime(match.group(), '%I:%M %p').time()
-                parsed["delayed_until"] = time_obj
+                parsed["available_time"] = time_obj
 
         if "must be delivered with" in note_str:
             match = re.findall(r'\d+', note_str)
