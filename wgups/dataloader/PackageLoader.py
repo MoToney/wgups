@@ -41,6 +41,9 @@ class PackageLoader(object):
         if "available_time" in special_notes:
             package.available_time = special_notes["available_time"]
 
+        if "required_truck" in special_notes:
+            package.required_truck = special_notes["required_truck"]
+
         return package
 
     @staticmethod

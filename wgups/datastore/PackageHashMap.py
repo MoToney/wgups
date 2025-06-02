@@ -28,6 +28,12 @@ class PackageHashMap:
         quad_hashkey = (hash(key) + self.c1 * i + self.c2 * i * i) % self.size
         return quad_hashkey
 
+    def is_package(self,i):
+        if isinstance(self.packages_table[i], Package):
+            pass
+        pass
+
+
     def add_package(self, package: Package):
         i = 0
         buckets_probed = 0

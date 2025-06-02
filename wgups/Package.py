@@ -49,6 +49,7 @@ class Package:
 
         self.must_be_delivered_with: Optional[list[int]] = None
         self.available_time: Optional[datetime.time] = None
+        self.required_truck: Optional[int] = None
 
 
     def set_status(self, status):
