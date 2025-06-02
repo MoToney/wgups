@@ -35,10 +35,10 @@ class Routing:
                       f"truck:{p.required_truck} cost: {cost} oldcost: {cost2}")
                 scored_pckgs.append((p,cost))
             '''
-            scored_pckgs = self.get_scored_candidates(available_pckgs, current_time, current_location,visited_ids, route_id)
+            scored_packages = self.get_scored_packages(available_pckgs, current_time, current_location, visited_ids, route_id)
 
             # if no more valid options
-            if not scored_pckgs:
+            if not scored_packages:
                 break
 
             # select lowest cost package
@@ -47,7 +47,7 @@ class Routing:
                 if cost < best_cost:
                     best_cost = cost
                     best_package = package"""
-            best_package = self.select_lowest_cost(scored_pckgs)
+            best_package = self.select_best_package(scored_packages)
 
             # add group if needed
             """group = [best_package]
@@ -115,8 +115,8 @@ class Routing:
                         available_packages.append(package)
         return available_packages
 
-    def cost_v2(self, package: Package, current_time:datetime, current_location:str, visited_ids:set,
-                route_id:int) -> float:
+    def score(self, package: Package, current_time:datetime, current_location:str, visited_ids:set,
+              route_id:int) -> float:
         distance = self.distance_map.get_distance(current_location, package.address_w_zip)
 
         if package.deadline:
@@ -137,25 +137,23 @@ class Routing:
 
         return distance * ALPHA + urgency * BETA + penalty
 
-    def cost(self, package: Package, current_time:datetime, current_location:str) -> float:
-        distance = self.distance_map.get_distance(current_location, package.address_w_zip)
+    def get_scored_packages(self, available_packages:list[Package], current_time:datetime, current_location:str,
+                            visited_ids:set, route_id:int) -> list[tuple[Package, float]]:
+        scored = []
+        for package in available_packages:
+            if self.violates_group_constraint(package, visited_ids, route_id):
+                continue
+            cost = self.score(package, current_time, current_location, visited_ids, route_id)
+            scored.append((package, cost))
+        print(scored)
+        return scored
 
-        if package.deadline:
-            time_remaining = (package.deadline - current_time).total_seconds() / 60
-            if time_remaining <= 0:
-                return float('inf')
-            return distance * (60 / time_remaining) # more urgent
-        return distance * 2 # no deadline = deprioritized
-
-    def select_best_package(self, avail_packages: list[Package], current_time:datetime,
-                            current_location:str) -> Package:
-        cost = float('inf')
-        best_package = None
-        for pckg in avail_packages:
-            potential_cost = self.cost(pckg, current_time, current_location)
-            if best_package is None or potential_cost < cost:
-                best_package = pckg
-                cost = potential_cost
+    def select_best_package(self, scored_packages:list[tuple[Package, float]]) -> Package:
+        lowest_cost = float("inf")
+        for package, cost in scored_packages:
+            if cost < lowest_cost:
+                lowest_cost = cost
+                best_package = package
         return best_package
 
     def violates_group_constraint(self, package: Package, visited_ids:set, route_id:int ) -> bool:
@@ -182,40 +180,6 @@ class Routing:
         '''if len(visited_ids) + len(full_group_ids - visited_ids) > truck_capacity:
             return True  # Group too large to fit now'''
 
-    def get_full_group(self, package:Package, packages:PackageHashMap) -> list[Package]:
-        group_ids = set(package.must_be_delivered_with or [])
-        group_ids.add(package.package_id)
-
-        group = []
-        for pid in group_ids:
-            pkg = packages.search_package(pid)
-            if pkg:
-                group.append(pkg)
-        return group
-
-    def compute_travel_time(self, distance:float) -> timedelta:
-        hours = distance / 18.0
-        seconds = hours * 3600
-        return timedelta(seconds=seconds)
-
-    def get_scored_candidates(self, available_packages:list[Package], current_time:datetime, current_location:str,
-                              visited_ids:set, route_id:int) -> list[Package]:
-        scored = []
-        for package in available_packages:
-            if self.violates_group_constraint(package, visited_ids, route_id):
-                continue
-            cost = self.cost_v2(package, current_time, current_location, visited_ids, route_id)
-            scored.append((package, cost))
-        return scored
-
-    def select_lowest_cost(self, scored_packages:list[tuple[Package, float]]) -> Package:
-        lowest_cost = float("inf")
-        for package, cost in scored_packages:
-            if cost < lowest_cost:
-                lowest_cost = cost
-                best_package = package
-        return best_package
-
     def get_package_group(self, best_package:Package, packages:PackageHashMap, visited_ids:set) -> list[Package]:
         group = [best_package]
         if best_package.must_be_delivered_with:
@@ -236,6 +200,20 @@ class Routing:
             current_location = pkg.address_w_zip
         return current_location, current_time
 
+    def compute_travel_time(self, distance:float) -> timedelta:
+        hours = distance / 18.0
+        seconds = hours * 3600
+        return timedelta(seconds=seconds)
+
+    def old_cost(self, package: Package, current_time:datetime, current_location:str) -> float:
+        distance = self.distance_map.get_distance(current_location, package.address_w_zip)
+
+        if package.deadline:
+            time_remaining = (package.deadline - current_time).total_seconds() / 60
+            if time_remaining <= 0:
+                return float('inf')
+            return distance * (60 / time_remaining) # more urgent
+        return distance * 2 # no deadline = deprioritized
 
 packages = PackageLoader.load_from_file("../data/packages.csv",
                                         PackageHashMap(61, 1, 1, .75))
