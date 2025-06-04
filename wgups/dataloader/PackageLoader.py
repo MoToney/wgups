@@ -6,18 +6,22 @@ from datetime import datetime
 from typing import Optional
 
 
-class PackageLoader(object):
+class PackageLoader():
+    def __init__(self, file:str, package_hash_map:PackageHashMap):
+        self.file = file
+        self.package_hash_map = package_hash_map
+        self.load_from_file()
 
-    @staticmethod
-    def load_from_file(file: str, package_hash_map: PackageHashMap) -> Optional[PackageHashMap]:
+
+    def load_from_file(self) -> Optional[PackageHashMap]:
         import csv
-        with open(file, 'r') as csvfile:
+        with open(self.file, 'r') as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
             next(reader)
             for row in reader:
                 if row:
-                    package_hash_map.add_package(PackageLoader.csv_to_package(row=row))
-            return package_hash_map
+                    self.package_hash_map.add_package(PackageLoader.csv_to_package(row=row))
+            return self.package_hash_map
 
     @staticmethod
     def csv_to_package(row: list[str]) -> Package:
@@ -40,6 +44,8 @@ class PackageLoader(object):
 
         if "available_time" in special_notes:
             package.available_time = special_notes["available_time"]
+        else:
+            package.status = PackageStatus.AT_HUB
 
         if "required_truck" in special_notes:
             package.required_truck = special_notes["required_truck"]
@@ -81,6 +87,9 @@ class PackageLoader(object):
             parsed["wrong_address"] = True
 
         return parsed
+
+    def get_map(self) -> PackageHashMap:
+        return self.package_hash_map
 
 
 # test

@@ -13,95 +13,45 @@ class Routing:
         self.group_to_route: dict[frozenset[int], int] = {}
 
     def build_route(self, route_id:int, start:str, packages:PackageHashMap,visited_ids:set, current_time:datetime,
-                    max_capacity:int) -> list[Package]:
-        route = [start]
+                    max_capacity:int, total_dist:int = 0):
+        route = [("None",start)]
         current_location = start
 
+
         # get all possible choices for this route
-        available_pckgs = self.get_available_packages(packages, visited_ids, current_time, route_id)
+        available_packages = self.get_available_packages(packages=packages, visited_ids=visited_ids,
+                                                         current_time=current_time, route_id=route_id)
 
-        while len(visited_ids) < max_capacity:
-            '''scored_pckgs = []
-
-            # calculate cost for each candidate
-            for p in available_pckgs:
-                if self.violates_group_constraint(p, visited_ids, route_id):
-                    print(f"{p} violation")
-                    continue
-
-                cost = self.cost_v2(p,current_time, current_location, visited_ids, route_id)
-                cost2 = self.cost(p,current_time, current_location)
-                print(f"{p.package_id, p.address_w_zip, p.deadline, p.must_be_delivered_with}"
-                      f"truck:{p.required_truck} cost: {cost} oldcost: {cost2}")
-                scored_pckgs.append((p,cost))
-            '''
-            scored_packages = self.get_scored_packages(available_pckgs, current_time, current_location, visited_ids, route_id)
+        while len(route) < max_capacity:
+            scored_packages = self.get_scored_packages(available_packages=available_packages, current_time=current_time,
+                                                       current_location=current_location, visited_ids=visited_ids,
+                                                       route_id=route_id)
 
             # if no more valid options
             if not scored_packages:
                 break
 
             # select lowest cost package
-            """best_cost = float("inf")
-            for package,cost in scored_pckgs:
-                if cost < best_cost:
-                    best_cost = cost
-                    best_package = package"""
-            best_package = self.select_best_package(scored_packages)
+            best_package = self.select_best_package(scored_packages=scored_packages)
 
             # add group if needed
-            """group = [best_package]
-            if best_package.must_be_delivered_with:
-                for gid in best_package.must_be_delivered_with:
-                    gpackage = packages.search_package(gid)
-                    if gpackage.package_id not in visited_ids:
-                        group.append(gpackage)"""
-            group = self.get_package_group(best_package, packages, visited_ids)
+            group = self.get_package_group(best_package=best_package, packages=packages, visited_ids=visited_ids)
 
             # check if adding group exceeds capacity
-            if len(visited_ids) + len(group) > max_capacity:
+            if len(route) + len(group) > max_capacity:
                 print("mark_group_as_skipped(group)")
                 continue
 
             # add package(s) to route
-            current_location, current_time = self.add_group_to_route(group, route, visited_ids, current_location, current_time)
+            current_location, current_time, total_dist = self.add_group_to_route(group=group, route=route,
+                                                                                 visited_ids=visited_ids,
+                                                                     current_location=current_location,
+                                                                     current_time=current_time, total_dist=total_dist)
 
             #refresh possible choices for next stop
-            available_pckgs = self.get_available_packages(packages, visited_ids, current_time, route_id)
+            available_packages = self.get_available_packages(packages, visited_ids, current_time, route_id)
 
-        return route
-
-    """            group = self.get_full_group(next_package, packages)
-            unvisited_group = []
-            for pack in group:
-                if pack.package_id not in visited_ids:
-                    unvisited_group.append(pack)
-
-            #check if group fits
-            if len(visited_ids) + len(unvisited_group) > max_capacity:
-                continue
-
-            # lock group to route before adding
-            group_key = frozenset(pack.package_id for pack in group)
-            if group_key not in self.group_to_route:
-                self.group_to_route[group_key] = route_id
-
-            #add each package in the group
-            for pkg in unvisited_group:
-                route.append(pkg.address_w_zip)
-                visited_ids.add(pkg.package_id)
-                current_location = pkg.address_w_zip
-
-            '''if next_package.must_be_delivered_with:
-                if len(next_package.must_be_delivered_with)
-                for pid in next_package.must_be_delivered_with:
-                    package = packages.search_package(pid)
-                    if pid not in visited_ids:
-                        print(package)
-                        route.append(package)
-                        visited_ids.add(package.package_id)'''"""
-
-
+        return route, self.group_to_route, visited_ids, current_time, total_dist, available_packages
 
     def get_available_packages(self, packages:PackageHashMap, visited_ids:set, current_time:datetime,
                                route_id:int) -> list[Package]:
@@ -145,7 +95,6 @@ class Routing:
                 continue
             cost = self.score(package, current_time, current_location, visited_ids, route_id)
             scored.append((package, cost))
-        print(scored)
         return scored
 
     def select_best_package(self, scored_packages:list[tuple[Package, float]]) -> Package:
@@ -177,9 +126,6 @@ class Routing:
 
         return False
 
-        '''if len(visited_ids) + len(full_group_ids - visited_ids) > truck_capacity:
-            return True  # Group too large to fit now'''
-
     def get_package_group(self, best_package:Package, packages:PackageHashMap, visited_ids:set) -> list[Package]:
         group = [best_package]
         if best_package.must_be_delivered_with:
@@ -189,16 +135,17 @@ class Routing:
                     group.append(p)
         return group
 
-    def add_group_to_route(self, group:list[Package], route:list[str], visited_ids:set, current_location:str,
-                           current_time:datetime):
+    def add_group_to_route(self, group:list[Package], route:list[tuple[str,str]], visited_ids:set, current_location:str,
+                           current_time:datetime, total_dist: float):
         for pkg in group:
             dist = self.distance_map.get_distance(current_location, pkg.address_w_zip)
             travel_time = self.compute_travel_time(dist)
             current_time += travel_time
+            total_dist += dist
             visited_ids.add(pkg.package_id)
-            route.append(pkg.address_w_zip)
+            route.append((str(pkg.package_id),pkg.address_w_zip))
             current_location = pkg.address_w_zip
-        return current_location, current_time
+        return current_location, current_time, total_dist
 
     def compute_travel_time(self, distance:float) -> timedelta:
         hours = distance / 18.0
@@ -215,29 +162,10 @@ class Routing:
             return distance * (60 / time_remaining) # more urgent
         return distance * 2 # no deadline = deprioritized
 
-packages = PackageLoader.load_from_file("../data/packages.csv",
-                                        PackageHashMap(61, 1, 1, .75))
-distances = DistanceMap("../data/distances.csv")
-routing = Routing(distances)
-availables = routing.get_available_packages(packages, set(),
-                                            datetime(1900, 1, 1, 8, 0), 2)
+"""route = routing.build_route(2, "HUB", packages, set() ,
+                            datetime(1900,1,1,8,0), 16)"""
 
 
 
-
-route = routing.build_route(2, "HUB", packages, set() ,
-                            datetime(1900,1,1,8,0), 16)
-print(route)
-
-
-
-
-
-
-
-
-"""
-to get the time it'll take do distance/mph and then find a way to implement this into the NN algorithm
-"""
 
 

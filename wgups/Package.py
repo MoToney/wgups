@@ -19,7 +19,8 @@ class PackageStatus(Enum):
     AT_HUB = 1
     ON_TRUCK1 = 2
     ON_TRUCK2 = 3
-    DELIVERED = 4
+    ON_TRUCK3 = 4
+    DELIVERED = 5
 
 
 """
@@ -45,17 +46,16 @@ class Package:
         self.special_note = note
         self.status = status
 
-        self.address_w_zip = self.get_address_w_zip() # this is for standardization with the addresses in distances.csv
-
         self.must_be_delivered_with: Optional[list[int]] = None
         self.available_time: Optional[datetime.time] = None
         self.required_truck: Optional[int] = None
 
+        self.address_w_zip = self.get_address_w_zip() # this is for standardization with the addresses in distances.csv
+        self.delivery_time = None
 
     def set_status(self, status):
         # manually set status
         self.status = status
-
     def mark_not_ready(self):
         self.status = PackageStatus.NOT_READY
     def mark_at_hub(self):
@@ -64,8 +64,13 @@ class Package:
         self.status = PackageStatus.ON_TRUCK1
     def mark_truck2(self):
         self.status = PackageStatus.ON_TRUCK2
+    def mark_truck3(self):
+        self.status = PackageStatus.ON_TRUCK3
     def mark_delivered(self):
         self.status = PackageStatus.DELIVERED
+
+    def set_delivery_time(self, delivery_time: datetime.time):
+        self.delivery_time = delivery_time
 
     def get_address_w_zip(self):
         """returns address that is usable when referencing the listed address for the Package in DistanceMap"""
