@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional
 
 
-class PackageLoader():
+class PackageLoader:
     def __init__(self, file:str, package_hash_map:PackageHashMap):
         self.file = file
         self.package_hash_map = package_hash_map
@@ -49,6 +49,10 @@ class PackageLoader():
 
         if "required_truck" in special_notes:
             package.required_truck = special_notes["required_truck"]
+
+        if "wrong_address" in special_notes:
+            package.wrong_address = True
+            package.status = PackageStatus.NOT_READY
 
         return package
 
