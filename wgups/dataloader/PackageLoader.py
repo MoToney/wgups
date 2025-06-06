@@ -1,4 +1,5 @@
 import re
+from collections import defaultdict
 
 from wgups.datastore.PackageHashMap import PackageHashMap
 from wgups.Package import Package, PackageStatus
@@ -11,6 +12,7 @@ class PackageLoader:
         self.file = file
         self.package_hash_map = package_hash_map
         self.load_from_file()
+        self.build_groups()
 
 
     def load_from_file(self) -> Optional[PackageHashMap]:
@@ -94,6 +96,31 @@ class PackageLoader:
 
     def get_map(self) -> PackageHashMap:
         return self.package_hash_map
+
+    def build_groups(self):
+        groups = []
+        for package in self.package_hash_map.packages_table:
+            if not isinstance(package, Package):
+                continue
+
+            if package.must_be_delivered_with:
+                new_group = set([package.package_id] + package.must_be_delivered_with)
+
+                merged = []
+
+                for group in groups:
+                    if not group.isdisjoint(new_group):
+                        new_group.update(group)
+                    else:
+                        merged.append(group)
+                merged.append(new_group)
+                groups = merged
+        for group in groups:
+            for member in group:
+                package = self.package_hash_map.search_package(member)
+                package.must_be_delivered_with = group
+
+
 
 
 # test
