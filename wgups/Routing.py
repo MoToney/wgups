@@ -2,6 +2,7 @@ import heapq
 from queue import PriorityQueue
 from collections import deque, defaultdict
 from datetime import datetime, timedelta
+from typing import Any
 
 from wgups.Package import Package
 from wgups.TruckState import TruckState
@@ -144,7 +145,7 @@ class Routing:
         heapq.heappush(priority_queue, (3, priority_3_packages))
         return priority_queue, current_time
 
-    def get_prioritized_packages(self, priority_queue: heapq, current_time: datetime, max_size: int) -> list[int]:
+    def get_list_from_priority_queue(self, priority_queue: heapq, current_time: datetime, max_size: int) -> list[int]:
         mock_time = current_time
         relevant_packages = []
         current_location = "HUB"
@@ -220,23 +221,23 @@ class Routing:
                 return relevant_packages
         return relevant_packages
 
-    def sort_prioritized_packages(self, prioritized_packages: list[int], current_time: datetime):
-        mock_time = current_time
-        current_location = "HUB"
-        print(f"Prioritized Packages: {prioritized_packages}")
-        expedited_packages = []
-        regular_packages = []
+    def sort_packages_by_deadline(self, prioritized_packages: list[int]) :
         deadline_groups = defaultdict(list)
+        non_expedited_packages = []
+
         for package_id in prioritized_packages:
             package = packages.search_package(package_id)
             if package.deadline:
                 deadline_groups[package.deadline].append(package)
-                heapq.heappush(expedited_packages, (package.deadline, package_id))
-            else: regular_packages.append(package)
+            else: non_expedited_packages.append(package)
 
-        #get nearest neighbor while ensuring closer deadlines are handled first
-        base_route = list()
-        slack_time = timedelta(hours=12,minutes=00,seconds=00)
+
+        return deadline_groups, non_expedited_packages
+
+    def build_priorized_route(self, deadline_groups: defaultdict[list, Any], mock_time:datetime, current_location):
+        base_route = []
+        slack_time = timedelta(hours=24, minutes=00, seconds=00)
+
         for deadline in sorted(deadline_groups.keys()):
             group = deadline_groups[deadline]
 
@@ -259,45 +260,54 @@ class Routing:
                     mock_time = arrival_time
                     group.remove(neighbor)
 
-        print(f"You have {slack_time} of time to work with")
+        return base_route, slack_time
 
-        #add the packages that have potential to be fit in between the expedited packages
-        curr_time = datetime(1900,1,1,8,0)
+    def get_potential_insertable_packages(self, base_route, unprioritized_packages, slack_time):
         choices = []
-        for package in regular_packages:
+        for package in unprioritized_packages:
 
             previous_stop = "HUB"
-            time_to_get_to_package, time_to_get_to_priority = None,None
+            time_prev_stop_to_package, time_package_to_next_stop = None, None
 
             for i, stop in enumerate(base_route):
-                if time_to_get_to_package is None:
-                    time_to_get_to_package = self.get_travel_time(previous_stop, package.address_w_zip)
+                if time_prev_stop_to_package is None:
+                    time_prev_stop_to_package = self.get_travel_time(previous_stop, package.address_w_zip)
 
-                time_to_get_to_priority = self.get_travel_time(package.address_w_zip, stop.address_w_zip)
-                time_added = time_to_get_to_package + time_to_get_to_priority
+                time_package_to_next_stop = self.get_travel_time(package.address_w_zip, stop.address_w_zip)
+                time_added = time_prev_stop_to_package + time_package_to_next_stop
 
-                if time_added < slack_time and len(base_route) <= len(prioritized_packages):
-                    #heapq.heappush(choices, (time_added, previous_stop, stop, package))
+                if time_added <= slack_time:
                     choices.append((time_added, previous_stop, stop, package))
                     """print(f"Considering package: {package.package_id, package.address_w_zip} "
                           f"\n After stop: {previous_stop}"
                       f"\n Before stop: {stop.package_id, stop.address_w_zip, stop.deadline} "
-                      f"\n Time to package: {time_to_get_to_package} Time from package to stop: {time_to_get_to_priority} "
+                      f"\n Time to package: {time_prev_stop_to_package} Time from package to stop: {time_package_to_next_stop} "
                       f"\n Total time added {time_added}\n")"""
 
-
-                time_to_get_to_package = time_to_get_to_priority
-                curr_location = stop.address_w_zip
+                time_prev_stop_to_package = time_package_to_next_stop
                 previous_stop = stop
         choices = sorted(choices, key=lambda x: x[0], reverse=True)
 
+        return choices
+
+    def sort_prioritized_packages(self, prioritized_packages: list[int], current_time: datetime):
+        mock_time = current_time
+        current_location = "HUB"
+        print(f"Prioritized Packages: {prioritized_packages}")
+
+        deadline_groups, regular_packages = self.sort_packages_by_deadline(prioritized_packages)
+
+        base_route, slack_time = self.build_priorized_route(deadline_groups, current_time, current_location)
+
+        #add the packages that have potential to be fit in between the expedited packages
+        potential_choices = self.get_potential_insertable_packages(base_route, regular_packages, slack_time)
 
         added_to_route = set()
         time_added = timedelta(hours=0,minutes=0,seconds=0)
 
         # add packages in their optimal position until the slack_time is exhausted
-        while choices:
-            addition = choices.pop()
+        while potential_choices:
+            addition = potential_choices.pop()
 
             if addition[3] not in added_to_route:
 
@@ -339,6 +349,7 @@ class Routing:
                                         time_package_to_next = self.get_travel_time(package.address_w_zip, next_stop)
                                         time_added = time_to_package + time_package_to_next
 
+                                        # START HERE MAKE IT TO WHERE THE CHAINED PACKAGE IS ONLY ADDED IF IT IS THE BEST CHOICE
                                         if time_added < slack_time:
                                             print(
                                                 f"Inserting chained package {package.package_id} after {inserted_package.package_id}")
@@ -349,7 +360,7 @@ class Routing:
                                             break  # Optionally only add the best one
                                 break
                 else:
-                    choices.append(addition)
+                    potential_choices.append(addition)
                     break
             else:
                 print(f"\n already added {addition[3]}")
@@ -558,6 +569,6 @@ packages = PackageLoader("../data/packages.csv", PackageHashMap(61, 1, 1, .75)).
 routing = Routing(distances)
 
 PQ, current_time = (routing.get_priority_queue(packages, set(), datetime(1900,1,1,8,0), 1))
-priorities = routing.get_prioritized_packages(PQ, current_time=current_time, max_size=16)
+priorities = routing.get_list_from_priority_queue(PQ, current_time=current_time, max_size=16)
 sorty = routing.sort_prioritized_packages(priorities, current_time=current_time)
 
