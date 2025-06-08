@@ -81,7 +81,7 @@ class PackageLoader:
         if "delayed" in note_str:
             match = re.search(r'\b\d{1,2}:\d{2}\s*(?:am|pm)\b', note_str)
             if match:
-                time_obj = datetime.strptime(match.group(), '%I:%M %p').time()
+                time_obj = datetime.strptime(match.group(), '%I:%M %p')
                 parsed["available_time"] = time_obj
 
         if "must be delivered with" in note_str:

@@ -31,7 +31,7 @@ Package class
 class Package:
     def __init__(self, package_id: int = 0, address: str = None, city: str = None, zip_code: str = None,
                  state: str = "Utah",
-                 deadline: datetime.time = None, weight: float = 0, note: dict = None,
+                 deadline: datetime = None, weight: float = 0, note: dict = None,
                  status: PackageStatus = PackageStatus.NOT_READY
                  ):
         # the fields will need to be initialized upon creating a Package, if no data is specified it will be set to None
@@ -47,7 +47,7 @@ class Package:
         self.status = status
 
         self.must_be_delivered_with: Optional[list[int]] = None
-        self.available_time: Optional[datetime.time] = None
+        self.available_time: Optional[datetime] = None
         self.required_truck: Optional[int] = None
         self.wrong_address: Optional[bool] = False
 
