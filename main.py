@@ -1,4 +1,3 @@
-import csv
 from datetime import datetime, time
 
 from wgups.Routing import Routing
@@ -8,6 +7,7 @@ from wgups.dataloader.PackageLoader import PackageLoader
 from wgups.datastore.PackageHashMap import PackageHashMap
 from wgups.datastore.DistanceMap import DistanceMap
 
+# Maurice Toney Student ID:012549854
 
 packages = PackageLoader("data/packages.csv",
                                         PackageHashMap(61, 1, 1, .75)).get_map()
@@ -21,7 +21,7 @@ route_id = 1
 
 clockies = datetime(1900,1,1,8,0)
 clock = TimeManager(clockies)
-route, first_time, visited_ids = routing.build_route(1, clockies, set())
+route, first_time, first_miles, visited_ids = routing.build_route(1, clockies, set())
 package_list = []
 
 for stop in route:
@@ -34,7 +34,7 @@ truck.drive()
 #Truck 2
 cur_tha_time = datetime(1900,1,1,8,0)
 clock = TimeManager(cur_tha_time)
-route2, second_time, more_visited_ids = routing.build_route(2, cur_tha_time, visited_ids)
+route2, second_time, second_miles, more_visited_ids = routing.build_route(2, cur_tha_time, visited_ids)
 second_package_list = []
 
 for stop2 in route2:
@@ -45,7 +45,7 @@ truck2.drive()
 
 first_to_arrive = min(first_time, second_time)
 clock = TimeManager(first_to_arrive)
-route2, third_time, more_visited_ids = routing.build_route(2, first_to_arrive, visited_ids)
+route2, third_time, third_miles, more_visited_ids = routing.build_route(2, first_to_arrive, visited_ids)
 third_package_list = []
 
 for stop2 in route2:
@@ -53,6 +53,10 @@ for stop2 in route2:
 truck2 = Truck(2, 16, distances, clock)
 truck2.load_packages(third_package_list)
 truck2.drive()
+
+print(second_miles)
+total_miles = second_miles + third_miles + first_miles
+print(total_miles)
 
 
 

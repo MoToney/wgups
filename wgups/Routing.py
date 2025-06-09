@@ -303,20 +303,20 @@ class Routing:
         else:
             completed_route = self.build_regular_route(route=[], packages_not_in_route=regular_packages,
                                                        current_stop="HUB")
+        completed_time, miles_travelled = self.get_mock_completion_time_and_distance(completed_route, current_time, current_location)
 
-        fake_time = datetime(1900, 1, 1, 8, 0)
-        fake_current = "HUB"
-        completed_time = self.get_mock_completion_time(completed_route, current_time, current_location)
+        return completed_route, completed_time,miles_travelled, visited
 
-        return completed_route, completed_time, visited
-
-    def get_mock_completion_time(self, route, start_time, current_location):
+    def get_mock_completion_time_and_distance(self, route, start_time, current_location):
+        distance_travelled = 0
         for stop in route:
+            distance_travelled += self.distance_map.get_distance(current_location, stop.address_w_zip)
             travel_time = self.get_estimated_delivery_time(start_time, current_location, stop.address_w_zip)
             start_time = travel_time
             current_location = stop.address_w_zip
 
-        return start_time
+
+        return start_time, distance_travelled
 
     def get_nearest_neighbor(self, packages: list, current_location: str):
         nearest_neighbor = None
@@ -365,9 +365,10 @@ class Routing:
     def build_route(self, route_id, curr_time, visited):
         priority_queue, curr_time = self.get_priority_queue(curr_time, visited, route_id)
         priorities = self.get_list_from_priority_queue(priority_queue, curr_time, 16)
-        final_route, final_time, final_visited_ids = self.sort_packages(priorities, visited, curr_time)
+        final_route, final_time, final_miles_travelled, final_visited_ids = self.sort_packages(priorities, visited, curr_time)
 
-        return final_route, final_time, final_visited_ids
+
+        return final_route, final_time, final_miles_travelled, final_visited_ids
 
 
 """distances = DistanceMap("../data/distances.csv")
