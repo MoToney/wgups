@@ -1,14 +1,15 @@
-class DistanceMap(object):
+class DistanceMap:
     def __init__(self, file:str):
         self.addresses = []
         self.matrix = []
         self.address_to_index = {}
-        self.load_from_file(self,file)
+        self.file = file
+        self.load_from_file()
 
-    @staticmethod
-    def load_from_file(self,file: str):
+
+    def load_from_file(self):
         import csv
-        with open(file, 'r') as csvfile:
+        with open(self.file, 'r') as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
             self.addresses = next(reader)[1:]
 

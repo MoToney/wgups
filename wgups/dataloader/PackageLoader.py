@@ -11,8 +11,11 @@ class PackageLoader:
     def __init__(self, file:str, package_hash_map:PackageHashMap):
         self.file = file
         self.package_hash_map = package_hash_map
+        self.address_dict = defaultdict(list)
+
         self.load_from_file()
         self.build_groups()
+        self.build_shared_addresses()
 
 
     def load_from_file(self) -> Optional[PackageHashMap]:
@@ -22,11 +25,10 @@ class PackageLoader:
             next(reader)
             for row in reader:
                 if row:
-                    self.package_hash_map.add_package(PackageLoader.csv_to_package(row=row))
+                    self.package_hash_map.add_package(self.csv_to_package(row=row))
             return self.package_hash_map
 
-    @staticmethod
-    def csv_to_package(row: list[str]) -> Package:
+    def csv_to_package(self, row: list[str]) -> Package:
         package_id = int(row[0])
         address = row[1]
         city = row[2]
@@ -40,6 +42,8 @@ class PackageLoader:
         package = Package(
             package_id=package_id, address=address, city=city, state=state, zip_code=zip_code,
             deadline=deadline, weight=weight, note=special_notes, status=status)
+
+        self.address_dict[address].append(package_id)
 
         if "grouped_packages" in special_notes:
             package.must_be_delivered_with = special_notes["grouped_packages"]
@@ -119,6 +123,26 @@ class PackageLoader:
             for member in group:
                 package = self.package_hash_map.search_package(member)
                 package.must_be_delivered_with = group
+
+    def build_shared_addresses(self):
+        visited = set()
+        for package in self.package_hash_map.packages_table:
+            if not isinstance(package, Package):
+                continue
+            if package.address in visited:
+                continue
+            if package.address in self.address_dict.keys():
+                if len(self.address_dict[package.address]) == 1:
+                    visited.add(package.address)
+                    continue
+                if len(self.address_dict[package.address]) > 1:
+                    print(f"{package} shares address with {self.address_dict[package.address]}multiple addresses")
+                    package.set_packages_at_same_address(self.address_dict[package.address])
+                    for pid in self.address_dict[package.address]:
+                        other_package = self.package_hash_map.search_package(pid)
+                        other_package.set_packages_at_same_address(self.address_dict[other_package.address])
+                    visited.add(package.address)
+
 
 
 

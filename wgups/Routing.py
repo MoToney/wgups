@@ -1,6 +1,6 @@
 import heapq
 from itertools import count
-from collections import deque, defaultdict
+from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -162,7 +162,7 @@ class Routing:
 
         return deadline_groups, non_expedited_packages
 
-    def build_priorized_route(self, deadline_groups: defaultdict[list, Any], mock_time: datetime, current_location):
+    def build_prioritized_route(self, deadline_groups: defaultdict[list, Any], mock_time: datetime, current_location):
         base_route = []
         slack_time = timedelta(hours=24, minutes=00, seconds=00)
 
@@ -287,7 +287,7 @@ class Routing:
 
         deadline_groups, regular_packages = self.sort_packages_by_deadline(prioritized_packages)
         if deadline_groups:
-            prioritized_route, slack_time = self.build_priorized_route(deadline_groups, current_time, current_location)
+            prioritized_route, slack_time = self.build_prioritized_route(deadline_groups, current_time, current_location)
             # add the packages that have potential to be fit in between the expedited packages
             potential_package_insertions = self.get_potential_insertable_packages("HUB", prioritized_route,
                                                                                   regular_packages, slack_time)
@@ -370,14 +370,14 @@ class Routing:
 
         return final_route, final_time, final_miles_travelled, final_visited_ids
 
-
-"""distances = DistanceMap("../data/distances.csv")
+"""
+distancesmap = DistanceMap("../data/distances.csv")
 packs = PackageLoader("../data/packages.csv", PackageHashMap(61, 1, 1, .75)).get_map()
-routing = Routing(distances, packs)
+routing = Routing(distancesmap, packs)
 current_tha_time = datetime(1900, 1, 1, 8, 0)
 
-sorty, timey, visity = routing.build_route(1, current_tha_time, set())
-print(sorty, timey, visity)
+sorty, timey,disty, visity = routing.build_route(1, current_tha_time, set())
+print(sorty, timey, disty, visity)
 
 twosorty, twotimey, twovisity = routing.build_route(2, current_tha_time, visity)
 print(twosorty, twovisity, twotimey)

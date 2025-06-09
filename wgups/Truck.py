@@ -75,7 +75,6 @@ class Truck:
             self.deliver_package(package)
             if package.deadline and package.delivery_time > package.deadline:
                 print(f"{package.package_id, package.delivery_time.time(), package.deadline.time()}Missed deadline")
-            print(package.delivery_time.time())
             self.delivery_log.append(package)
         self.return_to_hub()
         self.packages_in_truck.clear()

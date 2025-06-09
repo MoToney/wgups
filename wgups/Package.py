@@ -53,6 +53,7 @@ class Package:
 
         self.address_w_zip = self.get_address_w_zip() # this is for standardization with the addresses in distances.csv
         self.delivery_time = None
+        self.packages_at_same_address: Optional[Package] = None
 
     def set_status(self, status):
         # manually set status
@@ -77,6 +78,11 @@ class Package:
         """returns address that is usable when referencing the listed address for the Package in DistanceMap"""
         address_w_zip = (f"{self.address}({self.zip_code})")
         return address_w_zip
+
+    def set_packages_at_same_address(self, other_packages):
+        self.packages_at_same_address = other_packages
+
+
 
     def __str__(self):
         return (f"Package {self.package_id}: "
