@@ -84,7 +84,7 @@ class Truck:
         print_list = [str(package) for package in self.packages_in_truck]
         print(print_list)
 
-packies = PackageLoader("../data/packages.csv",
+"""packies = PackageLoader("../data/packages.csv",
                                         PackageHashMap(61, 1, 1, .75)).get_map()
 disties = DistanceMap("../data/distances.csv")
 routing = Routing(disties, packies)
@@ -101,3 +101,7 @@ for stop in route:
 truck = Truck(1, 16, disties, global_clock)
 truck.load_packages(package_list)
 truck.drive()
+
+route2, second_time, more_visited_ids = routing.build_route(2, final_time, visited_ids)
+"""
+
