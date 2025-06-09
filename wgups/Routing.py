@@ -14,19 +14,20 @@ from wgups.dataloader.PackageLoader import PackageLoader
 
 class Routing:
 
-    def __init__(self, distance_map: DistanceMap):
+    def __init__(self, distance_map: DistanceMap, packages: PackageHashMap):
         self.distance_map = distance_map
         self.group_to_route: dict[frozenset[int], int] = {}
         self.update_address_time: datetime.time = datetime(1900, 1, 1, 10, 20)
         self.correct_address = {
             9: "410 S. State St., Salt Lake City, UT 84111"
         }
+        self.packages = packages
 
-    def get_priority_queue(self, packages: PackageHashMap, visited_ids: set, route_id: int):
+    def get_priority_queue(self, curr_time, visited_ids: set, route_id: int):
         priority_queue = []
         grouped_packages = []
         priority_3_packages = []
-        for package in packages.packages_table:
+        for package in self.packages.packages_table:
             priority = None
             if not isinstance(package, Package):
                 continue
@@ -34,14 +35,14 @@ class Routing:
                 continue
             if package.package_id in visited_ids:
                 continue
-            if package.available_time and package.available_time > current_time:
+            if package.available_time and package.available_time > curr_time:
                 continue
-            if package.wrong_address and self.update_address_time > current_time:
+            if package.wrong_address and self.update_address_time > curr_time:
                 continue
 
             if package.must_be_delivered_with:
                 for pid in package.must_be_delivered_with:
-                    package_in_group = packages.search_package(pid)
+                    package_in_group = self.packages.search_package(pid)
                     if package_in_group.deadline:
                         priority = 2
                 if priority is None:
@@ -50,12 +51,16 @@ class Routing:
                     priority = min(priority, 4)
 
                 for pid in package.must_be_delivered_with:
-                    groupmate = packages.search_package(pid)
+                    groupmate = self.packages.search_package(pid)
                     grouped_packages.append(groupmate.package_id)
                 heapq.heappush(priority_queue, (priority, [grouped_packages]))
                 continue
 
+            if package.required_truck and package.required_truck != route_id:
+                continue
+
             if package.required_truck == route_id:
+                print(f"required truck: {package.required_truck} route_id: {route_id}")
                 priority = 1
                 heapq.heappush(priority_queue, (priority, package.package_id))
                 continue
@@ -68,7 +73,7 @@ class Routing:
                 priority = 5
                 heapq.heappush(priority_queue, (priority, package.package_id))
         heapq.heappush(priority_queue, (3, priority_3_packages))
-        return priority_queue
+        return priority_queue, curr_time
 
     def get_list_from_priority_queue(self, priority_queue: heapq, current_time: datetime, max_size: int) -> list[int]:
         mock_time = current_time
@@ -97,11 +102,12 @@ class Routing:
                     grouped_packages_w_deadline = []
 
                     for pid in package_id[priority_two_i]:
-                        gpackage = packages.search_package(pid)
+                        gpackage = self.packages.search_package(pid)
                         if gpackage.deadline:
                             heapq.heappush(grouped_packages_w_deadline, (gpackage.deadline, gpackage.package_id, gpackage.address_w_zip))
 
                     while grouped_packages_w_deadline:
+                        print(f"pack prio two: {package_id[priority_two_i]}")
                         deadline, p_id, addr_zip =  heapq.heappop(grouped_packages_w_deadline)
                         arrival_time = self.get_estimated_delivery_time(mock_time, current_location, addr_zip)
 
@@ -115,6 +121,7 @@ class Routing:
                             priority_two_i += 1
                             continue
 
+
                     for reachable_package in package_id[priority_two_i]:
                         relevant_packages.append(reachable_package)
                         max_size -= 1
@@ -123,7 +130,7 @@ class Routing:
             if priority == 3:
                 if isinstance(package_id, list):
                     for time,pid in package_id:
-                        package_w_deadline = packages.search_package(pid)
+                        package_w_deadline = self.packages.search_package(pid)
 
                         travel_time = self.get_estimated_delivery_time(mock_time, current_location, package_w_deadline.address_w_zip)
                         if travel_time <= package_w_deadline.deadline:
@@ -151,7 +158,7 @@ class Routing:
         non_expedited_packages = []
 
         for package_id in prioritized_packages:
-            package = packages.search_package(package_id)
+            package = self.packages.search_package(package_id)
             if package.deadline:
                 deadline_groups[package.deadline].append(package)
             else: non_expedited_packages.append(package)
@@ -177,7 +184,7 @@ class Routing:
 
             else:
                 while len(group) > 0:
-                    neighbor = self.get_nearest_neighbor(group, current_time, current_location)
+                    neighbor = self.get_nearest_neighbor(group, current_location)
                     base_route.append(neighbor)
                     arrival_time = self.get_estimated_delivery_time(mock_time, current_location, neighbor.address_w_zip)
                     slack_time = min(slack_time, (neighbor.deadline - arrival_time))
@@ -267,7 +274,6 @@ class Routing:
     def sort_packages(self, prioritized_packages: list[int], current_time: datetime):
         mock_time = current_time
         current_location = "HUB"
-        print(f"Packages: {prioritized_packages}\n")
 
         deadline_groups, regular_packages = self.sort_packages_by_deadline(prioritized_packages)
 
@@ -283,11 +289,10 @@ class Routing:
         fake_current = "HUB"
 
         while packages_not_in_route:
-            next = self.get_nearest_neighbor(packages_not_in_route, fake_time, current_stop.address_w_zip)
+            next = self.get_nearest_neighbor(packages_not_in_route, current_stop.address_w_zip)
             new_base_route.append(next)
             current_stop = next
             packages_not_in_route.remove(next)
-            print(next)
 
         completed_time =self.get_mock_completion_time(new_base_route, fake_time, fake_current)
 
@@ -301,7 +306,7 @@ class Routing:
 
         return start_time
 
-    def get_nearest_neighbor(self,packages:list, current_time,  current_location:str):
+    def get_nearest_neighbor(self,packages:list, current_location:str):
         nearest_neighbor = None
         shortest_dist = float("inf")
 
@@ -345,22 +350,28 @@ class Routing:
         estimated_delivery_time = current_time + self.get_travel_time(current_location, address_w_zip)
         return estimated_delivery_time
 
-    def build_route(self, route_id, time, packages, visited_ids):
-        priority_queue = self.get_priority_queue(packages, visited_ids, route_id)
-        priorities = self.get_list_from_priority_queue(priority_queue, current_time, 16)
-        final_route, final_time = self.sort_packages(priorities, current_time)
+    def build_route(self, route_id, curr_time, visited_ids):
+        priority_queue, curr_time = self.get_priority_queue(curr_time, visited_ids,route_id)
+        priorities = self.get_list_from_priority_queue(priority_queue, curr_time, 16)
+        final_route, final_time = self.sort_packages(priorities, curr_time)
         for package in final_route:
             visited_ids.add(package.package_id)
         return final_route, final_time, visited_ids
 
-distances = DistanceMap("../data/distances.csv")
-packages = PackageLoader("../data/packages.csv", PackageHashMap(61, 1, 1, .75)).get_map()
-routing = Routing(distances)
-current_time = datetime(1900,1,1,8,0)
+"""distances = DistanceMap("../data/distances.csv")
+packs = PackageLoader("../data/packages.csv", PackageHashMap(61, 1, 1, .75)).get_map()
+routing = Routing(distances, packs)
+current_tha_time = datetime(1900,1,1,8,0)
 
-sorty,timey, visity = routing.build_route(1, current_time, packages, set())
+sorty,timey, visity = routing.build_route(1, current_tha_time, set())
+
+three = packs.search_package(3)
+
+print(three)
+
+print(type(three.required_truck))
 
 print(sorty, timey, visity)
-
+"""
 
 

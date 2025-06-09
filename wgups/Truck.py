@@ -57,22 +57,25 @@ class Truck:
         package.set_delivery_time(self.clock.current_time)
 
         self.distance_travelled += dist
-        self.current_location = package.address_w_zip
+        self.location = package.address_w_zip
 
     def return_to_hub(self):
-        if self.current_location == 'HUB':
-            return "truck is at HUB"
-        dist = self.distance_map.get_distance('HUB', self.current_location)
+        if self.location == 'HUB':
+            return "truck is already at HUB"
+        dist = self.distance_map.get_distance('HUB', self.location)
         travel_time = timedelta(hours=dist / 18.0)
         self.clock.advance(travel_time)
         self.distance_travelled += dist
-        self.current_location = 'HUB'
+        self.location = 'HUB'
+        return "truck is now at HUB"
 
     def drive(self):
+        self.test_packages_in_truck()
         for package in self.packages_in_truck:
             self.deliver_package(package)
             if package.deadline and package.delivery_time > package.deadline:
                 print(f"{package.package_id, package.delivery_time.time(), package.deadline.time()}Missed deadline")
+            print(package.delivery_time.time())
             self.delivery_log.append(package)
         self.return_to_hub()
         self.packages_in_truck.clear()
@@ -81,20 +84,20 @@ class Truck:
         print_list = [str(package) for package in self.packages_in_truck]
         print(print_list)
 
-packages = PackageLoader("../data/packages.csv",
+packies = PackageLoader("../data/packages.csv",
                                         PackageHashMap(61, 1, 1, .75)).get_map()
-distances = DistanceMap("../data/distances.csv")
-routing = Routing(distances)
-global_clock = TimeManager(datetime.strptime("8:30 AM", "%I:%M %p"))
+disties = DistanceMap("../data/distances.csv")
+routing = Routing(disties, packies)
+global_clock = TimeManager(datetime.strptime("8:00 AM", "%I:%M %p"))
 current_clock = global_clock.current_time
-route, group, visited, time1, dist,available = routing.build_route(route_id=1, start="HUB", packages=packages, visited_ids=set(), current_time=current_clock,
-                            max_capacity=16)
-package_list = []
-for id, address in route:
-    if address == 'HUB':
-        continue
-    package_list.append(packages.packages_table[int(id)])
+clockies = current_tha_time = datetime(1900,1,1,8,0)
+route, final_time, visited_ids = routing.build_route(1, clockies, set())
 
-truck = Truck(1, 16, distances, global_clock)
+package_list = []
+
+for stop in route:
+    package_list.append(packies.packages_table[int(stop.package_id)])
+
+truck = Truck(1, 16, disties, global_clock)
 truck.load_packages(package_list)
 truck.drive()
