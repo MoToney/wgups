@@ -22,7 +22,7 @@ class Routing:
             9: "410 S. State St., Salt Lake City, UT 84111"
         }
 
-    def get_priority_queue(self, packages: PackageHashMap, visited_ids: set, current_time: datetime, route_id: int):
+    def get_priority_queue(self, packages: PackageHashMap, visited_ids: set, route_id: int):
         priority_queue = []
         grouped_packages = []
         priority_3_packages = []
@@ -68,7 +68,7 @@ class Routing:
                 priority = 5
                 heapq.heappush(priority_queue, (priority, package.package_id))
         heapq.heappush(priority_queue, (3, priority_3_packages))
-        return priority_queue, current_time
+        return priority_queue
 
     def get_list_from_priority_queue(self, priority_queue: heapq, current_time: datetime, max_size: int) -> list[int]:
         mock_time = current_time
@@ -291,8 +291,6 @@ class Routing:
 
         completed_time =self.get_mock_completion_time(new_base_route, fake_time, fake_current)
 
-        print(len(new_base_route))
-
         return new_base_route, completed_time
 
     def get_mock_completion_time(self, route, start_time, current_location):
@@ -347,13 +345,22 @@ class Routing:
         estimated_delivery_time = current_time + self.get_travel_time(current_location, address_w_zip)
         return estimated_delivery_time
 
+    def build_route(self, route_id, time, packages, visited_ids):
+        priority_queue = self.get_priority_queue(packages, visited_ids, route_id)
+        priorities = self.get_list_from_priority_queue(priority_queue, current_time, 16)
+        final_route, final_time = self.sort_packages(priorities, current_time)
+        for package in final_route:
+            visited_ids.add(package.package_id)
+        return final_route, final_time, visited_ids
+
 distances = DistanceMap("../data/distances.csv")
 packages = PackageLoader("../data/packages.csv", PackageHashMap(61, 1, 1, .75)).get_map()
 routing = Routing(distances)
+current_time = datetime(1900,1,1,8,0)
 
-PQ, current_time = (routing.get_priority_queue(packages, set(), datetime(1900,1,1,8,0), 1))
-priorities = routing.get_list_from_priority_queue(PQ, current_time=current_time, max_size=16)
-sorty, timey = routing.sort_packages(priorities, current_time=current_time)
+sorty,timey, visity = routing.build_route(1, current_time, packages, set())
 
-print(sorty, timey)
+print(sorty, timey, visity)
+
+
 
