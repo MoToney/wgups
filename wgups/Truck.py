@@ -70,7 +70,7 @@ class Truck:
         return "truck is now at HUB"
 
     def drive(self):
-        self.test_packages_in_truck()
+        #self.test_packages_in_truck()
         for package in self.packages_in_truck:
             self.deliver_package(package)
             if package.deadline and package.delivery_time > package.deadline:

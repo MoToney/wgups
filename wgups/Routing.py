@@ -73,13 +73,13 @@ class Routing:
         heapq.heappush(priority_queue, (3, priority_3_packages))
         return priority_queue, curr_time
 
-    def get_list_from_priority_queue(self, priority_queue: heapq, current_time: datetime, max_size: int) -> list[int]:
+    def get_list_from_priority_queue(self, priority_queue: heapq, current_time: datetime, visited: set,
+                                     max_size: int) -> list[int]:
         mock_time = current_time
         relevant_packages = []
         current_location = "HUB"
-        priority_two_i = 0  # iterator for multiple groups with priority level 2
-        priotity_four_i = 0  # iterator for multiple groups with priority level 4
-        while priority_queue:
+
+        while priority_queue and max_size > 0:
             priority, package_id = heapq.heappop(priority_queue)
 
             # grab all packages that are required for that truck/route
@@ -94,60 +94,166 @@ class Routing:
                 if not isinstance(package_id, list):
                     raise TypeError("package_id in priority 2 must be a list")
                 # if group can't fit
-                if len(package_id[priority_two_i]) > max_size:
-                    continue
-                else:
-                    grouped_packages_w_deadline = []
+                for group in package_id:
+                    if len(group) > max_size:
+                        continue
 
-                    for pid in package_id[priority_two_i]:
-                        gpackage = self.packages.search_package(pid)
-                        if gpackage.deadline:
+                    grouped_packages_w_deadline = []
+                    for pid in group:
+                        pkg = self.packages.search_package(pid)
+                        if pkg.deadline:
                             heapq.heappush(grouped_packages_w_deadline,
-                                           (gpackage.deadline, gpackage.package_id, gpackage.address_w_zip))
+                                           (pkg.deadline, pkg.package_id, pkg.address_w_zip))
+
+                    group_is_deliverable = True
 
                     while grouped_packages_w_deadline:
                         deadline, p_id, addr_zip = heapq.heappop(grouped_packages_w_deadline)
-                        arrival_time = self.get_estimated_delivery_time(mock_time, current_location, addr_zip)
+                        eta = self.get_estimated_delivery_time(mock_time, current_location, addr_zip)
 
-                        if arrival_time <= deadline:
-                            current_location = addr_zip
-                            mock_time = arrival_time
+                        if eta > deadline:
+                            group_is_deliverable = False
+                            break
+                        mock_time = eta
+                        current_location = addr_zip
 
-                        # remove the entire group if it cannot be delivered within time range
-                        if arrival_time > deadline:
-                            mock_time = current_time
-                            priority_two_i += 1
-                            continue
-
-                    for reachable_package in package_id[priority_two_i]:
-                        relevant_packages.append(reachable_package)
-                        max_size -= 1
-                        continue
+                    if group_is_deliverable:
+                        for pid in group:
+                            relevant_packages.append(pid)
+                            max_size -= 1
+                            if max_size == 0:
+                                return relevant_packages
+                continue
 
             if priority == 3:
                 if isinstance(package_id, list):
-                    for time, pid in package_id:
-                        package_w_deadline = self.packages.search_package(pid)
+                    for deadline_time, pid in package_id:
+                        pkg = self.packages.search_package(pid)
+                        travel_time = self.get_estimated_delivery_time(mock_time, current_location,
+                                                                       pkg.address_w_zip)
+
+                        # ADD IF A MATCHING PACKAGE IS ALREADY ADDED
+                        siblings = getattr(pkg, 'packages_at_same_address', [])
+                        if siblings and any(sid in relevant_packages for sid in siblings) and pid not in relevant_packages:
+                            relevant_packages.append(pid)
+                            max_size -= 1
+
+                        elif travel_time <= pkg.deadline and pid not in relevant_packages:
+                            relevant_packages.append(pid)
+                            mock_time = travel_time
+                            current_location = pkg.address_w_zip
+                            max_size -= 1
+
+                        if siblings and pid in relevant_packages and max_size > 0:
+                            for sid in siblings:
+                                if sid != pid and sid not in relevant_packages and self.is_package_in_priority_queue(priority_queue, sid):
+                                    print(f"{sid} caught at prior 3")
+                                    relevant_packages.append(sid)
+                                    max_size -= 1
+                                    if max_size == 0:
+                                        break
+                            if max_size == 0:
+                                break
+                    continue
+                    """ if pkg.packages_at_same_address:
+                            for sid in pkg.packages_at_same_address:
+                                if sid in relevant_packages and pid not in relevant_packages:
+                                    relevant_packages.append(pkg.package_id)
+                                    max_size -= 1
+
+                                    if len(pkg.packages_at_same_address) > 2:
+                                        for other_package_id in pkg.packages_at_same_address:
+                                            if other_package_id not in relevant_packages and max_size > 0 and self.is_package_in_priority_queue(
+                                                priority_queue, other_package_id):
+                                                print(self.is_package_in_priority_queue(priority_queue, other_package_id))
+                                                print(f"{other_package_id}yoo")
+                                                relevant_packages.append(other_package_id)
+                                                max_size -= 1
+                                    break
+
+                if travel_time <= pkg.deadline and pid not in relevant_packages:
+                            relevant_packages.append(pid)
+                            mock_time = travel_time
+                            current_location = pkg.address_w_zip
+                            max_size -= 1
+
+                            if pkg.packages_at_same_address:
+                    continue
+
+
+
+                 for time, pid in package_id:
+                        pkg = self.packages.search_package(pid)
 
                         travel_time = self.get_estimated_delivery_time(mock_time, current_location,
-                                                                       package_w_deadline.address_w_zip)
-                        if travel_time <= package_w_deadline.deadline:
+                                                                       pkg.address_w_zip)
+                        if travel_time <= pkg.deadline:
                             mock_time = travel_time
-                            current_location = package_w_deadline.address_w_zip
-                            relevant_packages.append(package_w_deadline.package_id)
+                            current_location = pkg.address_w_zip
+                            relevant_packages.append(pkg.package_id)
                             max_size -= 1
-                        else:
-                            break
+
+                            if pkg.packages_at_same_address:
+                                for other_package_id in pkg.packages_at_same_address:
+                                    if other_package_id not in relevant_packages and max_size > 0 and self.is_package_in_priority_queue(
+                                        priority_queue, other_package_id):
+                                        print(f"{other_package_id}owwooo")
+                                        relevant_packages.append(other_package_id)
+                                        max_size -= 1"""
+
+            for pid in list(relevant_packages):
+                pkg = self.packages.search_package(pid)
+                siblings = getattr(pkg, 'packages_at_same_address', [])
+                if siblings:
+                    for sid in siblings:
+                        if sid != pid and sid not in relevant_packages and max_size and self.is_package_in_priority_queue(
+                                priority_queue, sid):
+                            print(f"{sid} caught with for loop")
+                            relevant_packages.append(sid)
+                            max_size -= 1
+                            if max_size == 0:
+                                break
+                    if max_size == 0:
+                        break
+
+
             if priority == 4:
                 raise ValueError("should not happen there are no groups that don't have deadline")
 
-            if priority == 5:
-                # print(self.)
+            if priority == 5 and max_size > 0:
                 relevant_packages.append(package_id)
                 max_size -= 1
+
+                package = self.packages.search_package(package_id)
+                siblings = getattr(package, 'packages_at_same_address', [])
+                if siblings:
+                    for sid in siblings:
+                        if sid != package_id and sid not in relevant_packages and max_size and self.is_package_in_priority_queue(
+                                priority_queue, sid):
+                            print(f"{sid} caught at prior 5")
+                            relevant_packages.append(sid)
+                            max_size -= 1
+                            if max_size == 0:
+                                break
+                    if max_size == 0:
+                        break
+
             if max_size == 0:
-                return relevant_packages
+                break
         return relevant_packages
+
+    def is_package_in_priority_queue(self, priority_queue, pid_to_find):
+        for priority, item in priority_queue:
+            if isinstance(item, list):
+                for sub in item:
+                    if isinstance(sub, tuple):
+                        if sub[1] == pid_to_find:
+                            return True
+                    elif sub == pid_to_find:
+                        return True
+            elif item == pid_to_find:
+                return True
+        return False
 
     def sort_packages_by_deadline(self, prioritized_packages: list[int]):
         deadline_groups = defaultdict(list)
@@ -211,12 +317,6 @@ class Routing:
                 if time_added <= slack_time:
                     heapq.heappush(choices, (time_added, next(counter), previous_stop, stop, package))
 
-                    """print(f"Considering package: {package.package_id, package.address_w_zip} "
-                          f"\n After stop: {previous_stop}"
-                      f"\n Before stop: {stop.package_id, stop.address_w_zip, stop.deadline} "
-                      f"\n Time to package: {time_prev_stop_to_package} Time from package to stop: {time_package_to_next_stop} "
-                      f"\n Total time added {time_added}\n")"""
-
                 time_prev_stop_to_package = time_package_to_next_stop
                 previous_stop = stop
 
@@ -238,12 +338,12 @@ class Routing:
 
             if prev_stop == 'HUB':  # check if prev_stop is "HUB" because HUB is not in the base_route
                 base_route.insert(0, package)
+                index = 0
             elif isinstance(prev_stop, Package):  # if the previous stop is a Package
                 for index, stop in enumerate(base_route):  # search for the stop and get it's index
                     if stop == prev_stop:  # if the correct
                         if index + 1 < len(base_route) and base_route[index + 1] == next_stop:
                             base_route.insert(index + 1, package)
-                            # print(f"package {package.package_id} added travel time of {travel_time}")
                             break
             time_added += travel_time
             slack_time -= travel_time
@@ -280,14 +380,15 @@ class Routing:
             packages_not_in_route.remove(next_package)
         return route
 
-    def sort_packages(self, prioritized_packages: list[int], visited:set, current_time: datetime):
+    def sort_packages(self, prioritized_packages: list[int], visited: set, current_time: datetime):
         mock_time = current_time
         current_location = "HUB"
         visited = visited.union(prioritized_packages)
 
         deadline_groups, regular_packages = self.sort_packages_by_deadline(prioritized_packages)
         if deadline_groups:
-            prioritized_route, slack_time = self.build_prioritized_route(deadline_groups, current_time, current_location)
+            prioritized_route, slack_time = self.build_prioritized_route(deadline_groups, current_time,
+                                                                         current_location)
             # add the packages that have potential to be fit in between the expedited packages
             potential_package_insertions = self.get_potential_insertable_packages("HUB", prioritized_route,
                                                                                   regular_packages, slack_time)
@@ -303,9 +404,10 @@ class Routing:
         else:
             completed_route = self.build_regular_route(route=[], packages_not_in_route=regular_packages,
                                                        current_stop="HUB")
-        completed_time, miles_travelled = self.get_mock_completion_time_and_distance(completed_route, current_time, current_location)
+        completed_time, miles_travelled = self.get_mock_completion_time_and_distance(completed_route, current_time,
+                                                                                     current_location)
 
-        return completed_route, completed_time,miles_travelled, visited
+        return completed_route, completed_time, miles_travelled, visited
 
     def get_mock_completion_time_and_distance(self, route, start_time, current_location):
         distance_travelled = 0
@@ -314,7 +416,6 @@ class Routing:
             travel_time = self.get_estimated_delivery_time(start_time, current_location, stop.address_w_zip)
             start_time = travel_time
             current_location = stop.address_w_zip
-
 
         return start_time, distance_travelled
 
@@ -364,11 +465,12 @@ class Routing:
 
     def build_route(self, route_id, curr_time, visited):
         priority_queue, curr_time = self.get_priority_queue(curr_time, visited, route_id)
-        priorities = self.get_list_from_priority_queue(priority_queue, curr_time, 16)
-        final_route, final_time, final_miles_travelled, final_visited_ids = self.sort_packages(priorities, visited, curr_time)
-
+        priorities = self.get_list_from_priority_queue(priority_queue, curr_time, visited, 16)
+        final_route, final_time, final_miles_travelled, final_visited_ids = self.sort_packages(priorities, visited,
+                                                                                               curr_time)
 
         return final_route, final_time, final_miles_travelled, final_visited_ids
+
 
 """
 distancesmap = DistanceMap("../data/distances.csv")

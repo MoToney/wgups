@@ -134,9 +134,10 @@ class PackageLoader:
             if package.address in self.address_dict.keys():
                 if len(self.address_dict[package.address]) == 1:
                     visited.add(package.address)
+                    package.set_packages_at_same_address(None)
                     continue
                 if len(self.address_dict[package.address]) > 1:
-                    print(f"{package} shares address with {self.address_dict[package.address]}multiple addresses")
+                    #print(f"{package} shares address with {self.address_dict[package.address]}multiple addresses")
                     package.set_packages_at_same_address(self.address_dict[package.address])
                     for pid in self.address_dict[package.address]:
                         other_package = self.package_hash_map.search_package(pid)
