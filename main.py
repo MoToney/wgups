@@ -55,7 +55,7 @@ print("\n")
 #Truck 3
 first_to_arrive = min(first_time, second_time)
 clock3 = TimeManager(first_to_arrive)
-route3, third_time, third_miles, more_visited_ids = routing.build_route(3, first_to_arrive, more_visited_ids)
+route3, third_time, third_miles, many_more_visited_ids = routing.build_route(3, first_to_arrive, more_visited_ids)
 third_package_list = []
 
 for stop3 in route3:
@@ -70,6 +70,7 @@ print(len(third_package_list))
 
 total_miles = second_miles + third_miles + first_miles
 print(total_miles)
+print(many_more_visited_ids)
 
 
 
