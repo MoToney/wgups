@@ -73,8 +73,8 @@ class Routing:
         heapq.heappush(priority_queue, (3, priority_3_packages))
         return priority_queue, curr_time
 
-    def get_list_from_priority_queue(self, priority_queue: heapq, current_time: datetime, visited: set,
-                                     max_size: int) -> list[int]:
+    def select_packages_by_priority(self, priority_queue: heapq, current_time: datetime, visited: set,
+                                    max_size: int) -> list[int]:
         mock_time = current_time
         relevant_packages = []
         current_location = "HUB"
@@ -254,7 +254,7 @@ class Routing:
 
         return base_route, slack_time
 
-    def get_potential_insertable_packages(self, starting_point, base_route, unprioritized_packages, slack_time):
+    def find_all_feasible_insertions(self, starting_point, base_route, unprioritized_packages, slack_time):
         choices = []
         counter = count()
         for package in unprioritized_packages:
@@ -284,7 +284,7 @@ class Routing:
 
         return choices
 
-    def insert_potential_packages_into_base_route(self, base_route, potential_packages, regular_packages, slack_time):
+    def insert_best_feasible_packages(self, base_route, potential_packages, regular_packages, slack_time):
         added_to_route = set()
 
         while potential_packages:  # add packages in their optimal position until the slack_time is exhausted
@@ -324,7 +324,7 @@ class Routing:
 
             # check if there's a follow-up insertion that is best
             if index + 1 < len(base_route):  # if the package was not inserted at the end
-                new_inserts = self.get_potential_insertable_packages(
+                new_inserts = self.find_all_feasible_insertions(
                     starting_point=package, base_route=base_route,
                     unprioritized_packages=regular_packages, slack_time=slack_time)
 
@@ -371,10 +371,10 @@ class Routing:
             print(len(prioritized_route), len(regular_packages))
 
             # add the packages that have potential to be fit in between the expedited packages
-            potential_package_insertions = self.get_potential_insertable_packages("HUB", prioritized_route,
-                                                                                  regular_packages, slack_time)
+            potential_package_insertions = self.find_all_feasible_insertions("HUB", prioritized_route,
+                                                                             regular_packages, slack_time)
 
-            base_route, new_slack_time, packages_not_in_route = (self.insert_potential_packages_into_base_route
+            base_route, new_slack_time, packages_not_in_route = (self.insert_best_feasible_packages
                                                                  (prioritized_route, potential_package_insertions,
                                                                   regular_packages, slack_time))
 
@@ -448,7 +448,7 @@ class Routing:
 
     def build_route(self, route_id, curr_time, visited):
         priority_queue, curr_time = self.get_priority_queue(curr_time, visited, route_id)
-        priorities = self.get_list_from_priority_queue(priority_queue, curr_time, visited, 16)
+        priorities = self.select_packages_by_priority(priority_queue, curr_time, visited, 16)
         final_route, final_time, final_miles_travelled, final_visited_ids = self.sort_packages(priorities, visited,
                                                                                                curr_time)
 
