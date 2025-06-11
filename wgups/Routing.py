@@ -155,51 +155,6 @@ class Routing:
                             if max_size == 0:
                                 break
                     continue
-                    """ if pkg.packages_at_same_address:
-                            for sid in pkg.packages_at_same_address:
-                                if sid in relevant_packages and pid not in relevant_packages:
-                                    relevant_packages.append(pkg.package_id)
-                                    max_size -= 1
-
-                                    if len(pkg.packages_at_same_address) > 2:
-                                        for other_package_id in pkg.packages_at_same_address:
-                                            if other_package_id not in relevant_packages and max_size > 0 and self.is_package_in_priority_queue(
-                                                priority_queue, other_package_id):
-                                                print(self.is_package_in_priority_queue(priority_queue, other_package_id))
-                                                print(f"{other_package_id}yoo")
-                                                relevant_packages.append(other_package_id)
-                                                max_size -= 1
-                                    break
-
-                if travel_time <= pkg.deadline and pid not in relevant_packages:
-                            relevant_packages.append(pid)
-                            mock_time = travel_time
-                            current_location = pkg.address_w_zip
-                            max_size -= 1
-
-                            if pkg.packages_at_same_address:
-                    continue
-
-
-
-                 for time, pid in package_id:
-                        pkg = self.packages.search_package(pid)
-
-                        travel_time = self.get_estimated_delivery_time(mock_time, current_location,
-                                                                       pkg.address_w_zip)
-                        if travel_time <= pkg.deadline:
-                            mock_time = travel_time
-                            current_location = pkg.address_w_zip
-                            relevant_packages.append(pkg.package_id)
-                            max_size -= 1
-
-                            if pkg.packages_at_same_address:
-                                for other_package_id in pkg.packages_at_same_address:
-                                    if other_package_id not in relevant_packages and max_size > 0 and self.is_package_in_priority_queue(
-                                        priority_queue, other_package_id):
-                                        print(f"{other_package_id}owwooo")
-                                        relevant_packages.append(other_package_id)
-                                        max_size -= 1"""
 
             for pid in relevant_packages:
                 pkg = self.packages.search_package(pid)
@@ -303,6 +258,7 @@ class Routing:
         choices = []
         counter = count()
         for package in unprioritized_packages:
+            #PACKAGE 24!!!
 
             previous_stop = starting_point
             time_prev_stop_to_package, time_package_to_next_stop = None, None
@@ -330,46 +286,52 @@ class Routing:
 
     def insert_potential_packages_into_base_route(self, base_route, potential_packages, regular_packages, slack_time):
         added_to_route = set()
-        time_added = timedelta(hours=0, minutes=0, seconds=0)
 
         while potential_packages:  # add packages in their optimal position until the slack_time is exhausted
             travel_time, counter, prev_stop, next_stop, package = heapq.heappop(potential_packages)
 
             if travel_time > slack_time:
                 print("No more insertions possible within slack time. and time has been exceeded")
-                break
+                return base_route, slack_time, regular_packages
 
             if package in added_to_route:
                 continue
 
+            inserted = False
             if prev_stop == 'HUB':  # check if prev_stop is "HUB" because HUB is not in the base_route
                 base_route.insert(0, package)
                 index = 0
+                inserted = True
             elif isinstance(prev_stop, Package):  # if the previous stop is a Package
+                found = False
                 for index, stop in enumerate(base_route):  # search for the stop and get it's index
                     if stop == prev_stop:  # if the correct
                         if index + 1 < len(base_route) and base_route[index + 1] == next_stop:
                             base_route.insert(index + 1, package)
+                            inserted = True
+                            found = True
                             break
-            time_added += travel_time
+                if not found:
+                    continue
+            if not inserted:
+                continue
+
             slack_time -= travel_time
             regular_packages.remove(package)
             added_to_route.add(package)
 
-            inserted_index = index
-            inserted_package = package
+
 
             # check if there's a follow-up insertion that is best
-            if inserted_index + 1 < len(base_route):  # if the package was not inserted at the end
-                new_insertables = self.get_potential_insertable_packages(
-                    starting_point=inserted_package, base_route=base_route,
+            if index + 1 < len(base_route):  # if the package was not inserted at the end
+                new_inserts = self.get_potential_insertable_packages(
+                    starting_point=package, base_route=base_route,
                     unprioritized_packages=regular_packages, slack_time=slack_time)
 
-                potential_packages = []
-
-                for item in new_insertables:
-                    if item[4] not in added_to_route:
-                        heapq.heappush(potential_packages, item)
+                while new_inserts:
+                    time_added, counter,prev_stop, next_stop, package = heapq.heappop(new_inserts)
+                    if package not in added_to_route:
+                        heapq.heappush(potential_packages, (time_added, counter,prev_stop, next_stop, package))
         return base_route, slack_time, regular_packages
 
     def build_regular_route(self, route, packages_not_in_route, current_stop):
@@ -406,6 +368,8 @@ class Routing:
                             prioritized_route.insert(index+1, sibling)
                             regular_packages.remove(sibling)
 
+            print(len(prioritized_route), len(regular_packages))
+
             # add the packages that have potential to be fit in between the expedited packages
             potential_package_insertions = self.get_potential_insertable_packages("HUB", prioritized_route,
                                                                                   regular_packages, slack_time)
@@ -413,6 +377,8 @@ class Routing:
             base_route, new_slack_time, packages_not_in_route = (self.insert_potential_packages_into_base_route
                                                                  (prioritized_route, potential_package_insertions,
                                                                   regular_packages, slack_time))
+
+            print(len(base_route), len(packages_not_in_route))
 
             current_stop = base_route[-1]
 
