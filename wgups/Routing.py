@@ -146,8 +146,8 @@ class Routing:
 
                         if siblings and pid in relevant_packages and max_size > 0:
                             for sid in siblings:
-                                if sid != pid and sid not in relevant_packages and self.is_package_in_priority_queue(priority_queue, sid):
-                                    print(f"{sid} caught at prior 3")
+                                if sid != pid and sid not in relevant_packages and max_size > 0 and  self.is_package_in_priority_queue(priority_queue, sid):
+                                    print(f"{sid} caught at priority 3")
                                     relevant_packages.append(sid)
                                     max_size -= 1
                                     if max_size == 0:
@@ -201,12 +201,12 @@ class Routing:
                                         relevant_packages.append(other_package_id)
                                         max_size -= 1"""
 
-            for pid in list(relevant_packages):
+            for pid in relevant_packages:
                 pkg = self.packages.search_package(pid)
                 siblings = getattr(pkg, 'packages_at_same_address', [])
                 if siblings:
                     for sid in siblings:
-                        if sid != pid and sid not in relevant_packages and max_size and self.is_package_in_priority_queue(
+                        if sid != pid and sid not in relevant_packages and max_size > 0 and self.is_package_in_priority_queue(
                                 priority_queue, sid):
                             print(f"{sid} caught with for loop")
                             relevant_packages.append(sid)
@@ -221,6 +221,8 @@ class Routing:
                 raise ValueError("should not happen there are no groups that don't have deadline")
 
             if priority == 5 and max_size > 0:
+                if package_id in relevant_packages:
+                    continue
                 relevant_packages.append(package_id)
                 max_size -= 1
 
@@ -228,15 +230,16 @@ class Routing:
                 siblings = getattr(package, 'packages_at_same_address', [])
                 if siblings:
                     for sid in siblings:
-                        if sid != package_id and sid not in relevant_packages and max_size and self.is_package_in_priority_queue(
+                        if sid != package_id and sid not in relevant_packages and max_size > 0 and self.is_package_in_priority_queue(
                                 priority_queue, sid):
-                            print(f"{sid} caught at prior 5")
+                            print(f"{sid} caught at priority 5")
                             relevant_packages.append(sid)
                             max_size -= 1
                             if max_size == 0:
                                 break
                     if max_size == 0:
                         break
+                continue
 
             if max_size == 0:
                 break
@@ -293,6 +296,7 @@ class Routing:
                     current_location = neighbor.address_w_zip
                     mock_time = arrival_time
                     group.remove(neighbor)
+
         return base_route, slack_time
 
     def get_potential_insertable_packages(self, starting_point, base_route, unprioritized_packages, slack_time):
@@ -306,7 +310,7 @@ class Routing:
             for i, stop in enumerate(base_route):
                 if time_prev_stop_to_package is None:
                     if isinstance(starting_point, str):
-                        time_prev_stop_to_package = self.get_travel_time(previous_stop, package.address_w_zip)
+                        time_prev_stop_to_package = self.get_travel_time("HUB", package.address_w_zip)
                     elif isinstance(starting_point, Package):
                         time_prev_stop_to_package = self.get_travel_time(previous_stop.address_w_zip,
                                                                          package.address_w_zip)
@@ -315,7 +319,9 @@ class Routing:
                 time_added = time_prev_stop_to_package + time_package_to_next_stop
 
                 if time_added <= slack_time:
-                    heapq.heappush(choices, (time_added, next(counter), previous_stop, stop, package))
+                    if isinstance(previous_stop, Package) and self.get_travel_time(previous_stop.address_w_zip,
+                                                                                   stop.address_w_zip) > time_package_to_next_stop:
+                        heapq.heappush(choices, (time_added, next(counter), previous_stop, stop, package))
 
                 time_prev_stop_to_package = time_package_to_next_stop
                 previous_stop = stop
@@ -389,6 +395,17 @@ class Routing:
         if deadline_groups:
             prioritized_route, slack_time = self.build_prioritized_route(deadline_groups, current_time,
                                                                          current_location)
+
+            for index, stop in enumerate(prioritized_route):
+                siblings = getattr(stop, 'packages_at_same_address', [])
+                sibling = None
+                if siblings:
+                    for sid in siblings:
+                        sibling = self.packages.search_package(sid)
+                        if sibling and sibling in regular_packages:
+                            prioritized_route.insert(index+1, sibling)
+                            regular_packages.remove(sibling)
+
             # add the packages that have potential to be fit in between the expedited packages
             potential_package_insertions = self.get_potential_insertable_packages("HUB", prioritized_route,
                                                                                   regular_packages, slack_time)
