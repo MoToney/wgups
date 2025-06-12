@@ -17,7 +17,10 @@ class Routing:
         self.group_to_route: dict[frozenset[int], int] = {}
         self.update_address_time: datetime.time = datetime(1900, 1, 1, 10, 20)
         self.correct_address = {
-            9: "410 S. State St., Salt Lake City, UT 84111"
+            9: [
+                ["410 S. State St.", "Salt Lake City", "Utah", 84111],
+                ["410 S State St(84111)"]
+            ]
         }
         self.packages = packages
 
@@ -75,17 +78,6 @@ class Routing:
         heapq.heappush(priority_queue, (3, priority_3_packages))
         print(f"deadline_groups: {deadline_groups}")
         return priority_queue, curr_time
-
-    def sort_nearest_neighbor(self, packages, start_location, get_distance):
-        route = []
-        current = start_location
-        to_visit = set(packages)
-        while to_visit:
-            nearest = min(to_visit, key=lambda pkg: get_distance(current, pkg.address_w_zip))
-            route.append(nearest)
-            current = nearest.address_w_zip
-            to_visit.remove(nearest)
-        return route
 
     def select_packages_by_priority(self, priority_queue: heapq, current_time: datetime, visited: set,
                                     max_size: int) -> list[int]:
@@ -224,7 +216,6 @@ class Routing:
                 sorted_p5 = self.sort_nearest_neighbor(priority_5_packages, current_location,
                                                   self.distance_map.get_distance)
                 for pkg in sorted_p5:
-                    siblings = getattr(pkg, 'packages_at_same_address', [])
                     if pkg.package_id not in relevant_packages and max_size > 0:
                         relevant_packages.append(pkg.package_id)
                         current_location = pkg.address_w_zip
@@ -278,13 +269,16 @@ class Routing:
 
             else:
                 while len(group) > 0:
-                    neighbor = self.get_nearest_neighbor(group, current_location)
-                    base_route.append(neighbor)
-                    arrival_time = self.get_estimated_delivery_time(mock_time, current_location, neighbor.address_w_zip)
-                    slack_time = min(slack_time, (neighbor.deadline - arrival_time))
-                    current_location = neighbor.address_w_zip
-                    mock_time = arrival_time
-                    group.remove(neighbor)
+                    sorted_group = self.sort_nearest_neighbor(group, current_location,
+                                                           self.distance_map.get_distance)
+                    for nearest in sorted_group:
+                        base_route.append(nearest)
+                        arrival_time = self.get_estimated_delivery_time(mock_time, current_location,
+                                                                        nearest.address_w_zip)
+                        slack_time = min(slack_time, (nearest.deadline - arrival_time))
+                        current_location = nearest.address_w_zip
+                        mock_time = arrival_time
+                        group.remove(nearest)
 
         return base_route, slack_time
 
@@ -292,7 +286,6 @@ class Routing:
         choices = []
         counter = count()
         for package in unprioritized_packages:
-            #PACKAGE 24!!!
 
             previous_stop = starting_point
             time_prev_stop_to_package, time_package_to_next_stop = None, None
@@ -354,9 +347,6 @@ class Routing:
             slack_time -= travel_time
             remaining_packages.remove(package)
             inserted_packages.add(package)
-
-
-
             # check if there's a follow-up insertion that is best
             if insert_idx + 1 < len(base_route):  # if the package was not inserted at the end
                 new_inserts = self.find_all_feasible_insertions(
@@ -370,6 +360,7 @@ class Routing:
         return base_route, slack_time, remaining_packages
 
     def build_regular_route(self, route, packages_not_in_route, current_stop):
+
         while packages_not_in_route:
             if isinstance(current_stop, str):
                 next_package = self.get_nearest_neighbor(packages_not_in_route, current_stop)
@@ -395,7 +386,6 @@ class Routing:
 
             for index, stop in enumerate(prioritized_route):
                 siblings = getattr(stop, 'packages_at_same_address', [])
-                sibling = None
                 if siblings:
                     for sid in siblings:
                         sibling = self.packages.search_package(sid)
@@ -422,6 +412,142 @@ class Routing:
         else:
             completed_route = self.build_regular_route(route=[], packages_not_in_route=regular_packages,
                                                        current_stop="HUB")
+
+        if len(visited) >= 26:
+            pickup_options = []
+            updated = False
+            updatable_package = None
+
+            distance_travelled = 0
+            start_time = current_time
+            current_location = "HUB"
+
+            # Step 1: Simulate route to find best pickup time for the updatable package
+            for i, stop in enumerate(completed_route):
+                # Move to next stop
+                distance_to_next = self.distance_map.get_distance(current_location, stop.address_w_zip)
+                start_time = self.get_estimated_delivery_time(start_time, current_location, stop.address_w_zip)
+                current_location = stop.address_w_zip
+
+                # After the update time, check for pickup opportunity
+                if start_time >= self.update_address_time and not updated:
+                    # Try to find the updatable package
+                    for id in self.correct_address.keys():
+                        candidate = self.packages.search_package(id)
+                        if isinstance(candidate, Package) and candidate.package_id not in visited:
+                            updatable_package = candidate
+                            address = self.correct_address[id]
+                            # Set all relevant address fields
+                            updatable_package.address = address[0][0]
+                            updatable_package.city = address[0][1]
+                            updatable_package.state = address[0][2]
+                            updatable_package.zip_code = address[0][3]
+                            updatable_package.address_w_zip = address[1][0]
+                            updated = True
+                            idx = i
+                            break  # Found the package and updated it
+
+                # If we've just updated, record pickup options from this point on
+                if updated and updatable_package:
+                    # What if I detour to the hub right after this stop?
+                    to_hub = self.distance_map.get_distance(current_location, "HUB")
+                    arrival_at_hub = self.get_estimated_delivery_time(start_time, current_location, "HUB")
+                    detour_cost = to_hub  # Can expand to roundtrip if desired
+
+                    pickup_options.append({
+                        'stop_index': i,
+                        'time_at_hub': arrival_at_hub,
+                        'detour_cost': detour_cost,
+                        'route_state': (list(completed_route), current_location, start_time)
+                    })
+
+            # Defensive check: Was the package ever found and updated?
+            if not updatable_package:
+                print("Updatable package was never set (may not be available yet).")
+                best_option = None
+            else:
+                # Pick the best pickup opportunity (here, lowest detour cost)
+                if pickup_options:
+                    best_option = min(pickup_options, key=lambda x: x['detour_cost'])
+                    print("Best pickup:", best_option)
+                else:
+                    print("No possible pickup opportunity after update_address_time.")
+                    best_option = None
+
+                # Step 2: After picking up, find the best insertion point in the route
+                # Use the updated package, insert into completed_route after the best pickup
+                # For simplicity, use the current completed_route (could make a copy if needed)
+            """if best_option:
+                pickup_index = best_option['stop_index']
+                before_pickup = completed_route[:pickup_index + 1]
+                after_pickup = completed_route[pickup_index + 1:]
+
+                insert_options = []
+                starting_location = "HUB"
+
+                for i in range(len(after_pickup) +1):
+                    if i == 0:
+                        before = starting_location
+                    else:
+                        before = after_pickup[i-1]
+
+                    if i < len(after_pickup):
+                        after = after_pickup[i]
+                    else:
+                        after = None
+
+                    if isinstance(before, str):
+                        before_address = before
+                    else:
+                        before_address = before.address_w_zip
+
+                    if after:
+                        after_address = after.address_w_zip
+                    else:
+                        after_address = None
+
+                    dist_before_to_update = self.distance_map.get_distance(before_address,
+                                                                           updatable_package.address_w_zip)
+                    if after_address:
+                        dist_update_to_after = self.distance_map.get_distance(updatable_package.address_w_zip,
+                                                                              after_address)
+                    else:
+                        dist_update_to_after = 0
+
+                    if after_address:
+                        dist_before_to_after = self.distance_map.get_distance(before_address,
+                                                                          after_address)
+                    else:
+                        dist_before_to_after = 0
+
+                    # Net cost to insert between 'before' and 'after'
+                    added_cost = dist_before_to_update + dist_update_to_after - dist_before_to_after
+                    insert_options.append((i, added_cost))
+
+
+                best_insert = min(insert_options, key=lambda x: x[1])
+                print("Best insert position:", best_insert)
+
+                after_pickup_w_update = after_pickup.copy()
+                after_pickup_w_update.insert(best_insert[0], updatable_package)
+
+                new_route = before_pickup + ["HUB"] + after_pickup_w_update
+                for stop in new_route:
+                    print("Stop in new route:", stop)
+                inserted_time, inserted_miles = self.get_mock_completion_time_and_distance(new_route, current_time, starting_location)
+                print("Inserted miles:", inserted_miles, "inserted time:", inserted_time)
+
+                test_route = completed_route + ["HUB"] + [updatable_package]
+                for stop in test_route:
+                    print("Stop in test route:", stop)
+                tested_time, tested_miles = self.get_mock_completion_time_and_distance(test_route, current_time, starting_location)
+                print("Tested miles:", tested_miles, "tested time:", tested_time)
+
+                if tested_miles < inserted_miles:
+                    completed_route = test_route
+                elif inserted_miles <= tested_miles:
+                    completed_route = new_route"""
+
         completed_time, miles_travelled = self.get_mock_completion_time_and_distance(completed_route, current_time,
                                                                                      current_location)
 
@@ -430,17 +556,20 @@ class Routing:
     def get_mock_completion_time_and_distance(self, route, start_time, current_location):
         distance_travelled = 0
         for stop in route:
+            if isinstance(stop, Package):
+                stop_address = stop.address_w_zip
+            elif isinstance(stop, str):
+                stop_address = stop
+            else:
+                stop_address = None
 
-            distance_travelled += self.distance_map.get_distance(current_location, stop.address_w_zip)
-            travel_time = self.get_estimated_delivery_time(start_time, current_location, stop.address_w_zip)
+            distance_travelled += self.distance_map.get_distance(current_location, stop_address)
+            travel_time = self.get_estimated_delivery_time(start_time, current_location, stop_address)
             start_time = travel_time
-            current_location = stop.address_w_zip
+            current_location = stop_address
 
         distance_travelled += self.distance_map.get_distance(current_location, "HUB")
         start_time = self.get_estimated_delivery_time(start_time, current_location, "HUB")
-
-
-
 
         return start_time, distance_travelled
 
@@ -455,6 +584,17 @@ class Routing:
                 shortest_dist = new_distance
 
         return nearest_neighbor
+
+    def sort_nearest_neighbor(self, packages, start_location, get_distance):
+        route = []
+        current = start_location
+        to_visit = set(packages)
+        while to_visit:
+            nearest = min(to_visit, key=lambda pkg: get_distance(current, pkg.address_w_zip))
+            route.append(nearest)
+            current = nearest.address_w_zip
+            to_visit.remove(nearest)
+        return route
 
     def violates_group_constraint(self, package: Package, visited_ids: set, route_id: int) -> bool:
         group = package.must_be_delivered_with
