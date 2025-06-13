@@ -1,5 +1,6 @@
 from datetime import datetime, time
 
+from wgups.Package import Package
 from wgups.Routing import Routing
 from wgups.TimeManager import TimeManager
 from wgups.Truck import Truck
@@ -29,9 +30,9 @@ for stop in route:
     package_list.append(packages.packages_table[int(stop.package_id)])
 
 
-truck = Truck(1, 16, distoos, clock1)
-truck.load_packages(package_list)
-truck.drive()
+truck1 = Truck(1, 16, distoos, clock1)
+truck1.load_packages(package_list)
+truck1.drive()
 print(first_miles, first_time)
 print(len(package_list))
 
@@ -67,10 +68,46 @@ truck3.drive()
 print(third_time, third_miles)
 print(len(third_package_list))
 
+if len(many_more_visited_ids) != 40:
+    time_for_last_route = max(second_time, datetime(1900,1,1,10,20))
+    clock4 = TimeManager(time_for_last_route)
+    route4, fourth_time, fourth_miles, max_visited_ids = routing.build_route(4, time_for_last_route, many_more_visited_ids)
+    fourth_package_list = []
+    print(clock2)
 
-total_miles = second_miles + third_miles + first_miles
-print(total_miles)
-print(many_more_visited_ids)
+    for stop4 in route4:
+        print(stop4)
+        fourth_package_list.append(packages.packages_table[int(stop4.package_id)])
+    truck2.load_packages(fourth_package_list)
+    truck2.drive()
+    print(fourth_time,fourth_miles)
+    print(len(third_package_list))
+
+
+total_miles = second_miles + third_miles + first_miles + fourth_miles
+final_time = min(third_time, fourth_time)
+print(total_miles, final_time)
+print(max_visited_ids)
+
+def get_package_status_at_time(package: Package, query_time: datetime) -> str:
+    if query_time < package.departure_time:
+
+        return f"At Hub as of {query_time.time()}"
+    elif package.departure_time <= query_time < package.delivery_time:
+        return f"En Route as of {query_time.time()}"
+    else:
+        return f"Delivered at {package.delivery_time.time()}"
+
+def get_all_packages_at_time(query_time: datetime):
+    print(f"Status at {query_time.time()}:\n")
+    for package in packages.packages_table:
+        if isinstance(package, Package):
+            print(get_package_status_at_time(package, query_time))
+
+get_all_packages_at_time(datetime(1900,1,1,8,0))
+
+print(f"\nTotal mileage: {first_miles + second_miles + third_miles + fourth_miles}")
+
 
 
 

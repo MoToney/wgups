@@ -17,10 +17,14 @@ from typing import Optional
 class PackageStatus(Enum):
     NOT_READY = 0
     AT_HUB = 1
-    ON_TRUCK1 = 2
-    ON_TRUCK2 = 3
-    ON_TRUCK3 = 4
-    DELIVERED = 5
+    IN_ROUTE = 2
+    DELIVERED = 3
+
+class TruckCarrier(Enum):
+    NEITHER = 0
+    TRUCK_1 = 1
+    TRUCK_2 = 2
+    TRUCK_3 = 3
 
 
 """
@@ -46,14 +50,18 @@ class Package:
         self.special_note = note
         self.status = status
 
+        self.address_w_zip = self.get_address_w_zip() # this is for standardization with the addresses in distances.csv
+
         self.must_be_delivered_with: Optional[list[int]] = None
         self.available_time: Optional[datetime] = None
         self.required_truck: Optional[int] = None
         self.wrong_address: Optional[bool] = False
 
-        self.address_w_zip = self.get_address_w_zip() # this is for standardization with the addresses in distances.csv
-        self.delivery_time = None
         self.packages_at_same_address: Optional[Package] = None
+
+        self.delivery_time = None
+        self.departure_time = None
+        self.truck_carrier = TruckCarrier.NEITHER
 
     def set_status(self, status):
         # manually set status
@@ -62,17 +70,23 @@ class Package:
         self.status = PackageStatus.NOT_READY
     def mark_at_hub(self):
         self.status = PackageStatus.AT_HUB
-    def mark_truck1(self):
-        self.status = PackageStatus.ON_TRUCK1
-    def mark_truck2(self):
-        self.status = PackageStatus.ON_TRUCK2
-    def mark_truck3(self):
-        self.status = PackageStatus.ON_TRUCK3
+    def mark_in_route(self):
+        self.status = PackageStatus.IN_ROUTE
     def mark_delivered(self):
         self.status = PackageStatus.DELIVERED
 
+    def on_truck1(self):
+        self.truck_carrier = TruckCarrier.TRUCK_1
+    def on_truck2(self):
+        self.truck_carrier = TruckCarrier.TRUCK_2
+    def on_truck3(self):
+        self.truck_carrier = TruckCarrier.TRUCK_3
+
     def set_delivery_time(self, delivery_time: datetime.time):
         self.delivery_time = delivery_time
+
+    def set_departure_time(self, departure_time: datetime.time):
+        self.departure_time = departure_time
 
     def get_address_w_zip(self):
         """returns address that is usable when referencing the listed address for the Package in DistanceMap"""

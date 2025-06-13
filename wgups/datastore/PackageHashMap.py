@@ -117,7 +117,7 @@ class PackageHashMap:
         self.num_items = 0
 
         for i in range(old_size):
-            if old_status_table[i] is SlotStatus.OCCUPIED:
+            if old_status_table[i] == SlotStatus.OCCUPIED:
                 self.add_package(old_packages_table[i])
 
     def __str__(self):

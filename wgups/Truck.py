@@ -24,25 +24,27 @@ class Truck:
 
     def load_packages(self, packages):
         for package in packages:
+            package.mark_in_route()
             if self.truck_id == 1:
-                package.mark_truck1()
+                package.on_truck1()
             elif self.truck_id == 2:
-                package.mark_truck2()
+                package.on_truck2()
             elif self.truck_id == 3:
-                package.mark_truck3()
+                package.on_truck3()
             else:
                 print("Invalid Truck ID")
                 break
+            package.set_departure_time(self.clock.current_time)
             self.packages_in_truck.append(package)
         return self.packages_in_truck
 
     def add_package(self, package:Package):
         if self.truck_id == 1:
-            package.mark_truck1()
+            package.on_truck1()
         elif self.truck_id == 2:
-            package.mark_truck2()
+            package.on_truck2()
         elif self.truck_id == 3:
-            package.mark_truck3()
+            package.on_truck3()
         else:
             print("Invalid Truck ID")
         self.packages_in_truck.append(package)

@@ -41,6 +41,23 @@ class Routing:
                 continue
             if package.wrong_address and self.update_address_time > curr_time:
                 continue
+            if package.required_truck and package.required_truck != route_id:
+                continue
+
+            if package.wrong_address and curr_time >= self.update_address_time:
+                for id in self.correct_address.keys():
+                    candidate = self.packages.search_package(id)
+                    if isinstance(candidate, Package) and candidate.package_id not in visited:
+                        updatable_package = candidate
+                        address = self.correct_address[id]
+                        # Set all relevant address fields
+                        updatable_package.address = address[0][0]
+                        updatable_package.city = address[0][1]
+                        updatable_package.state = address[0][2]
+                        updatable_package.zip_code = address[0][3]
+                        updatable_package.address_w_zip = address[1][0]
+                        updatable_package.wrong_address = False
+                        # Found the package and updated it
 
             if package.must_be_delivered_with:
                 for pid in package.must_be_delivered_with:
@@ -58,8 +75,6 @@ class Routing:
                 heapq.heappush(priority_queue, (priority, [grouped_packages]))
                 continue
 
-            if package.required_truck and package.required_truck != route_id:
-                continue
 
             if package.required_truck == route_id:
                 print(f"required truck: {package.required_truck} route_id: {route_id}")
@@ -413,7 +428,7 @@ class Routing:
             completed_route = self.build_regular_route(route=[], packages_not_in_route=regular_packages,
                                                        current_stop="HUB")
 
-        if len(visited) >= 26:
+        """if len(visited) >= 26:
             pickup_options = []
             updated = False
             updatable_package = None
@@ -477,7 +492,7 @@ class Routing:
                 # Step 2: After picking up, find the best insertion point in the route
                 # Use the updated package, insert into completed_route after the best pickup
                 # For simplicity, use the current completed_route (could make a copy if needed)
-            """if best_option:
+            if best_option:
                 pickup_index = best_option['stop_index']
                 before_pickup = completed_route[:pickup_index + 1]
                 after_pickup = completed_route[pickup_index + 1:]
