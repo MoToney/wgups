@@ -27,7 +27,7 @@ package_list = []
 for stop in route:
     print(stop.package_id, stop.address_w_zip, stop.deadline
           , stop.special_note)
-    package_list.append(packages.packages_table[int(stop.package_id)])
+    package_list.append(packages[stop.package_id])
 
 
 truck1 = Truck(1, 16, distoos, clock1)
@@ -44,7 +44,7 @@ route2, second_time, second_miles, more_visited_ids = routing.build_route(2, cur
 second_package_list = []
 
 for stop2 in route2:
-    second_package_list.append(packages.packages_table[int(stop2.package_id)])
+    second_package_list.append(packages[stop2.package_id])
     print(stop2)
 truck2 = Truck(2, 16, distoos, clock2)
 truck2.load_packages(second_package_list)
@@ -61,7 +61,7 @@ third_package_list = []
 
 for stop3 in route3:
     print(stop3)
-    third_package_list.append(packages.packages_table[int(stop3.package_id)])
+    third_package_list.append(packages[stop3.package_id])
 truck3 = Truck(3, 16, distoos, clock3)
 truck3.load_packages(third_package_list)
 truck3.drive()
@@ -77,7 +77,7 @@ if len(many_more_visited_ids) != 40:
 
     for stop4 in route4:
         print(stop4)
-        fourth_package_list.append(packages.packages_table[int(stop4.package_id)])
+        fourth_package_list.append(packages[stop4.package_id])
     truck2.load_packages(fourth_package_list)
     truck2.drive()
     print(fourth_time,fourth_miles)

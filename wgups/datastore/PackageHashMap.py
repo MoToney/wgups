@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import Enum
+from typing import Optional
 
 from wgups.Package import Package, PackageStatus
 
@@ -61,7 +62,7 @@ class PackageHashMap:
 
         return False
 
-    def search_package(self, key):
+    def search_package(self, key: int) -> Optional[Package]:
         i = 0
         buckets_probed = 0
 
@@ -125,6 +126,18 @@ class PackageHashMap:
         preview_packages = list(self.packages_table)[:3]
         return (f"PackageHashMap with {count} packages "
                 f"(sample packages: {', '.join(map(str, preview_packages))})")
+
+    def __iter__(self):
+        for package, status in zip(self.packages_table, self.status_table):
+            if status == SlotStatus.OCCUPIED and isinstance(package, Package):
+                yield package
+
+    def __getitem__(self, key: int) -> Package:
+        result = self.search_package(key)
+        if result is None:
+            raise KeyError(key)
+        return result
+
 
 
 

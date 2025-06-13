@@ -29,10 +29,8 @@ class Routing:
         grouped_packages = []
         priority_3_packages = []
         deadline_groups = defaultdict(list)
-        for package in self.packages.packages_table:
+        for package in self.packages:
             priority = None
-            if not isinstance(package, Package):
-                continue
             if package.package_id in grouped_packages:
                 continue
             if package.package_id in visited:
@@ -46,8 +44,8 @@ class Routing:
 
             if package.wrong_address and curr_time >= self.update_address_time:
                 for id in self.correct_address.keys():
-                    candidate = self.packages.search_package(id)
-                    if isinstance(candidate, Package) and candidate.package_id not in visited:
+                    candidate = self.packages[id]
+                    if candidate.package_id not in visited:
                         updatable_package = candidate
                         address = self.correct_address[id]
                         # Set all relevant address fields
@@ -61,7 +59,7 @@ class Routing:
 
             if package.must_be_delivered_with:
                 for pid in package.must_be_delivered_with:
-                    package_in_group = self.packages.search_package(pid)
+                    package_in_group = self.packages[pid]
                     if package_in_group.deadline:
                         priority = 2
                 if priority is None:
@@ -70,7 +68,7 @@ class Routing:
                     priority = min(priority, 4)
 
                 for pid in package.must_be_delivered_with:
-                    groupmate = self.packages.search_package(pid)
+                    groupmate = self.packages[pid]
                     grouped_packages.append(groupmate.package_id)
                 heapq.heappush(priority_queue, (priority, [grouped_packages]))
                 continue
@@ -124,7 +122,7 @@ class Routing:
 
                     grouped_packages_w_deadline = []
                     for pid in group:
-                        pkg = self.packages.search_package(pid)
+                        pkg = self.packages[pid]
                         if pkg.deadline:
                             heapq.heappush(grouped_packages_w_deadline,
                                            (pkg.deadline, pkg.package_id, pkg.address_w_zip))
@@ -154,7 +152,7 @@ class Routing:
                 continue
 
             for pid in relevant_packages:
-                pkg = self.packages.search_package(pid)
+                pkg = self.packages[pid]
                 siblings = getattr(pkg, 'packages_at_same_address', [])
                 if siblings:
                     for sid in siblings:
@@ -173,7 +171,7 @@ class Routing:
                     for deadline_time, pid in package_id:
                         if pid in relevant_packages:
                             continue
-                        pkg = self.packages.search_package(pid)
+                        pkg = self.packages[pid]
                         # ADD IF A MATCHING PACKAGE IS ALREADY ADDED
                         siblings = getattr(pkg, 'packages_at_same_address', [])
                         if siblings and any(sid in relevant_packages for sid in siblings) and pid not in relevant_packages:
@@ -193,7 +191,7 @@ class Routing:
                 if package_id in relevant_packages:
                     continue
                 else:
-                    pkg = self.packages.search_package(package_id)
+                    pkg = self.packages[package_id]
                     priority_5_packages.append(pkg)
 
             if max_size == 0:
@@ -205,7 +203,7 @@ class Routing:
                 p3_by_deadline[pkg.deadline].append(pkg)
             for deadline in sorted(p3_by_deadline):
                 batch = p3_by_deadline[deadline]
-                sorted_batch = self.sort_nearest_neighbor(batch, current_location, self.distance_map.get_distance)
+                sorted_batch = self.sort_nearest_neighbors(batch, current_location, self.distance_map.get_distance)
                 for pkg in sorted_batch:
                     siblings = getattr(pkg, 'packages_at_same_address', [])
                     if pkg.package_id not in relevant_packages and max_size > 0:
@@ -228,8 +226,8 @@ class Routing:
 
             # Priority 5: NN sort for remaining, starting from wherever you left off
             if max_size > 0 and priority_5_packages:
-                sorted_p5 = self.sort_nearest_neighbor(priority_5_packages, current_location,
-                                                  self.distance_map.get_distance)
+                sorted_p5 = self.sort_nearest_neighbors(priority_5_packages, current_location,
+                                                        self.distance_map.get_distance)
                 for pkg in sorted_p5:
                     if pkg.package_id not in relevant_packages and max_size > 0:
                         relevant_packages.append(pkg.package_id)
@@ -258,7 +256,7 @@ class Routing:
         non_expedited_packages = []
 
         for package_id in prioritized_packages:
-            package = self.packages.search_package(package_id)
+            package = self.packages[package_id]
             if package.deadline:
                 deadline_groups[package.deadline].append(package)
             else:
@@ -284,8 +282,8 @@ class Routing:
 
             else:
                 while len(group) > 0:
-                    sorted_group = self.sort_nearest_neighbor(group, current_location,
-                                                           self.distance_map.get_distance)
+                    sorted_group = self.sort_nearest_neighbors(group, current_location,
+                                                               self.distance_map.get_distance)
                     for nearest in sorted_group:
                         base_route.append(nearest)
                         arrival_time = self.get_estimated_delivery_time(mock_time, current_location,
@@ -296,6 +294,9 @@ class Routing:
                         group.remove(nearest)
 
         return base_route, slack_time
+
+    def get_stop_address(stop):
+        return stop.address_w_zip if isinstance(stop, Package) else stop
 
     def find_all_feasible_insertions(self, starting_point, base_route, unprioritized_packages, slack_time):
         choices = []
@@ -317,8 +318,10 @@ class Routing:
                 time_added = time_prev_stop_to_package + time_package_to_next_stop
 
                 if time_added <= slack_time:
-                    if isinstance(previous_stop, Package) and self.get_travel_time(previous_stop.address_w_zip,
-                                                                                   stop.address_w_zip) > time_package_to_next_stop:
+                    if isinstance(previous_stop, Package):
+                        if self.get_travel_time(previous_stop.address_w_zip,stop.address_w_zip) > time_package_to_next_stop:
+                            heapq.heappush(choices, (time_added, next(counter), previous_stop, stop, package))
+                    else:
                         heapq.heappush(choices, (time_added, next(counter), previous_stop, stop, package))
 
                 time_prev_stop_to_package = time_package_to_next_stop
@@ -403,7 +406,7 @@ class Routing:
                 siblings = getattr(stop, 'packages_at_same_address', [])
                 if siblings:
                     for sid in siblings:
-                        sibling = self.packages.search_package(sid)
+                        sibling = self.packages[sid]
                         if sibling and sibling in regular_packages:
                             prioritized_route.insert(index+1, sibling)
                             regular_packages.remove(sibling)
@@ -448,7 +451,7 @@ class Routing:
                 if start_time >= self.update_address_time and not updated:
                     # Try to find the updatable package
                     for id in self.correct_address.keys():
-                        candidate = self.packages.search_package(id)
+                        candidate = self.packages[id]
                         if isinstance(candidate, Package) and candidate.package_id not in visited:
                             updatable_package = candidate
                             address = self.correct_address[id]
@@ -600,7 +603,7 @@ class Routing:
 
         return nearest_neighbor
 
-    def sort_nearest_neighbor(self, packages, start_location, get_distance):
+    def sort_nearest_neighbors(self, packages, start_location, get_distance):
         route = []
         current = start_location
         to_visit = set(packages)
