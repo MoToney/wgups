@@ -93,21 +93,33 @@ class Package:
         address_w_zip = (f"{self.address}({self.zip_code})")
         return address_w_zip
 
+    def set_address_w_zip(self, address_w_zip):
+        self.address_w_zip = address_w_zip
+
+    def set_full_address(self, address, city, state, zip_code):
+        self.address = address
+        self.city = city
+        self.state = state
+        self.zip_code = zip_code
+
+
+    def get_siblings(self):
+        return self.packages_at_same_address
+
     def set_packages_at_same_address(self, other_packages):
         self.packages_at_same_address = other_packages
 
-
-
     def __str__(self):
-        return (f"Package {self.package_id}: "
-                f"{self.status.name.replace('_', ' ').title()} | "
+        return (f"Package {self.package_id}: | "
                 f"Address: {self.address}, {self.city}, {self.state}, {self.zip_code} | "
                 f"Deadline: {self.deadline.strftime('%I:%M %p') if self.deadline else 'EOD'} | "
                 f"Weight: {self.weight} | "
+                f"Status: {self.status.name.replace('_', ' ').title()} | "
+                f"Delivery Time: {self.delivery_time} | "
                 f"Note: {self.special_note}")
 
 
-'''
-package = Package(2, "2510 South Vernice Drive", "Copperas Cove", "76522", "Utah", deadline=datetime.now(), weight=3.0,
+
+"""package = Package(2, "2510 South Vernice Drive", "Copperas Cove", "76522", "Utah", deadline=datetime.now(), weight=3.0,
                   note="",status=PackageStatus.NOT_READY)
-print(package.address_w_zip)'''
+print(package)"""
