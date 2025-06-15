@@ -5,14 +5,14 @@ import csv
 from datetime import datetime, time, timedelta
 
 from wgups.Routing import Routing
-from wgups.TimeManager import TimeManager
+from wgups.SimulationClock import SimulationClock
 from wgups.dataloader.PackageLoader import PackageLoader
 from wgups.datastore.PackageHashMap import PackageHashMap
 from wgups.datastore.DistanceMap import DistanceMap
 
 
 class Truck:
-    def __init__(self, truck_id:int = 0, capacity:int = 16, distance_map:DistanceMap = None, clock:TimeManager = None):
+    def __init__(self, truck_id:int = 0, capacity:int = 16, distance_map:DistanceMap = None, clock:SimulationClock = None):
         self.packages_in_truck = deque()
         self.truck_id = truck_id
         self.capacity = capacity
@@ -34,8 +34,10 @@ class Truck:
             else:
                 print("Invalid Truck ID")
                 break
-            package.set_departure_time(self.clock.current_time)
+            package.set_departure_time(self.clock.now())
             self.packages_in_truck.append(package)
+
+        self.clock.schedule_event(self.clock.now(), self.deliver_package, 0)
         return self.packages_in_truck
 
     def add_package(self, package:Package):
@@ -49,37 +51,46 @@ class Truck:
             print("Invalid Truck ID")
         self.packages_in_truck.append(package)
 
-    def deliver_package(self, package:Package):
-        dist = self.distance_map.get_distance(self.location, package.address_w_zip)
+    def deliver_package(self, index=0):
+        if index >= len(self.packages_in_truck):
+            self.packages_in_truck.clear()
+            print(f"Truck {self.truck_id} delivered all packages in route at {self.clock.now().strftime('%H:%M')} and drives to HUB")
+            self.clock.schedule_event(self.clock.now(),
+                                      self.return_to_hub)
+            return
 
-        travel_time = timedelta(hours= dist/18.0)
-        self.clock.advance(travel_time)
+        package = self.packages_in_truck[index]
+        dist = self.distance_map.get_distance(self.location, package.address_w_zip)
+        self.distance_travelled += dist
+        travel_time = timedelta(hours=dist / 18.0)
+        delivery_time = self.clock.now() + travel_time
+        self.location = package.address_w_zip
 
         package.mark_delivered()
-        package.set_delivery_time(self.clock.current_time)
+        package.set_delivery_time(delivery_time)
+        if package.deadline and package.delivery_time > package.deadline:
+            print(f"Package: {package.package_id} missed Deadline: {package.deadline.time()} it was Delivered at: {package.delivery_time.time()}")
+        self.delivery_log.append(package)
 
-        self.distance_travelled += dist
-        self.location = package.address_w_zip
+        # Schedule the actual delivery event at the computed time
+        self.clock.schedule_event(
+            delivery_time,
+            self.deliver_package, index + 1
+        )
+        print(
+            f"[{delivery_time.strftime('%H:%M')}] (scheduled) Truck {self.truck_id} delivered package {package.package_id} to {package.address_w_zip}")
 
     def return_to_hub(self):
         if self.location == 'HUB':
             return "truck is already at HUB"
         dist = self.distance_map.get_distance('HUB', self.location)
         travel_time = timedelta(hours=dist / 18.0)
-        self.clock.advance(travel_time)
+        finish_time = self.clock.now() + travel_time
         self.distance_travelled += dist
         self.location = 'HUB'
+        print(
+            f"[{finish_time.strftime('%H:%M')}] (scheduled) Truck {self.truck_id} returns to HUB")
         return "truck is now at HUB"
-
-    def drive(self):
-        #self.test_packages_in_truck()
-        for package in self.packages_in_truck:
-            self.deliver_package(package)
-            if package.deadline and package.delivery_time > package.deadline:
-                print(f"{package.package_id, package.delivery_time.time(), package.deadline.time()}Missed deadline")
-            self.delivery_log.append(package)
-        self.return_to_hub()
-        self.packages_in_truck.clear()
 
     def test_packages_in_truck(self):
         print_list = [str(package) for package in self.packages_in_truck]
