@@ -12,33 +12,50 @@ from enum import Enum
 from datetime import datetime
 from typing import Optional
 
-
-# enum to hold different status package could be in
 class PackageStatus(Enum):
+    """
+    returns the status of the package throughout the delivery cycle
+    """
     NOT_READY = 0
     AT_HUB = 1
     IN_ROUTE = 2
     DELIVERED = 3
 
 class TruckCarrier(Enum):
+    """
+    returns the truck that is associated with the object
+    """
     NEITHER = 0
     TRUCK_1 = 1
     TRUCK_2 = 2
     TRUCK_3 = 3
 
-
-"""
-Package class
-"""
-
-
 class Package:
+    """
+    represents a package that will be delivered to an address via a truck object
+    """
     def __init__(self, package_id: int = 0, address: str = None, city: str = None, zip_code: str = None,
                  state: str = "Utah",
-                 deadline: datetime = None, weight: float = 0, note: dict = None,
+                 deadline: datetime = None, weight:float = None, note: dict = None,
                  status: PackageStatus = PackageStatus.NOT_READY
                  ):
-        # the fields will need to be initialized upon creating a Package, if no data is specified it will be set to None
+        """
+        constructor which takes several package characteristics as parameters
+
+
+        :param package_id: id of the package
+        :param address: the street and house number of the package
+        :param city: the city of the package
+        :param zip_code: the zip code of the package
+        :param state: the state of the package
+        :param deadline: the time the package must be delivered by
+        :param weight: the weight of the package
+        :param note: the note of the package, denoting special handling guidelines
+        :param status: the status of the package, which is a phase in the PackageStatus Enum
+
+        :keyword state: set to the State of Utah by default
+        :keyword status: set to Not Ready by default
+        """
 
         self.package_id = package_id
         self.address = address
@@ -52,7 +69,7 @@ class Package:
 
         self.address_w_zip = self.get_address_w_zip() # this is for standardization with the addresses in distances.csv
 
-        self.must_be_delivered_with: Optional[list[int]] = None
+        self.must_be_delivered_with: Optional[list[int]] = None # stores the ids of packages that must be delivered at the same time as the package
         self.available_time: Optional[datetime] = None
         self.required_truck: Optional[int] = None
         self.wrong_address: Optional[bool] = False
@@ -81,6 +98,15 @@ class Package:
         self.truck_carrier = TruckCarrier.TRUCK_2
     def on_truck3(self):
         self.truck_carrier = TruckCarrier.TRUCK_3
+
+    def get_truck_carrier(self):
+        if self.truck_carrier == TruckCarrier.TRUCK_1:
+            return "Truck 1"
+        elif self.truck_carrier == TruckCarrier.TRUCK_2:
+            return "Truck 2"
+        elif self.truck_carrier == TruckCarrier.TRUCK_3:
+            return "Truck 3"
+        return self.truck_carrier
 
     def set_delivery_time(self, delivery_time: datetime.time):
         self.delivery_time = delivery_time

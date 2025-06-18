@@ -96,11 +96,12 @@ class Truck:
         print_list = [str(package) for package in self.packages_in_truck]
         print(print_list)
 
-"""packies = PackageLoader("../data/packages.csv",
+'''packies = PackageLoader("../data/packages.csv",
                                         PackageHashMap(61, 1, 1, .75)).get_map()
+clock = SimulationClock(datetime(1900,1,1,8,0))
 disties = DistanceMap("../data/distances.csv")
-routing = Routing(disties, packies)
-global_clock = TimeManager(datetime.strptime("8:00 AM", "%I:%M %p"))
+routing = Routing(disties, packies, clock)
+"""global_clock = TimeManager(datetime.strptime("8:00 AM", "%I:%M %p"))
 current_clock = global_clock.current_time
 clockies = current_tha_time = datetime(1900,1,1,8,0)
 route, final_time, visited_ids = routing.build_route(1, clockies, set())
@@ -113,7 +114,21 @@ for stop in route:
 truck = Truck(1, 16, disties, global_clock)
 truck.load_packages(package_list)
 truck.drive()
-
-route2, second_time, more_visited_ids = routing.build_route(2, final_time, visited_ids)
 """
+
+CAPACITY = 16
+
+routing = Routing(disties, packies, clock)
+clock.schedule_event(datetime(1900,1,1,9,5), routing.make_available, 6)
+clock.schedule_event(datetime(1900,1,1,10,20), routing.update_address, 9)
+
+start_time = datetime(1900,1,1,8,0)
+clock.run_until(start_time)
+route2, time2, miles2, vis2 = routing.build_route(2, start_time, set({1, 8, 13, 14, 15, 16, 19, 20, 21, 29, 30, 31, 34, 37, 39, 40}))
+truck2 = Truck(2, CAPACITY, disties, clock)
+clock.schedule_event(start_time, truck2.load_packages, route2)
+print(miles2, time2, len(route2), end="\n\n")
+
+clock.run_until(datetime(1900,1,1,17,0))
+print(truck2.distance_travelled)'''
 
