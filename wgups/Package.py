@@ -91,25 +91,25 @@ class Package:
         self.address_w_zip = self.get_address_w_zip() # this is for standardization with the addresses in distances.csv
 
         self.must_be_delivered_with: Optional[list[int]] = None # stores the ids of packages that must be delivered at the same time as the package
-        self.available_time: Optional[datetime] = None
-        self.required_truck: Optional[int] = None
-        self.wrong_address: Optional[bool] = False
+        self.available_time: Optional[datetime] = None # stores the time the package is available to be delivered
+        self.required_truck: Optional[int] = None # stores the truck that is required to deliver the package, if any
+        self.wrong_address: Optional[bool] = False # stores whether the package has the wrong address, default is False
 
-        self.packages_at_same_address: Optional[Package] = None
+        self.packages_at_same_address: Optional[Package] = None # stores the package that is at the same address as the current package, if any
 
-        self.delivery_time = None
+        self.delivery_time = None 
         self.departure_time = None
         self.truck_carrier = TruckCarrier.NONE
 
-    def mark_not_ready(self):
+    def mark_not_ready(self) -> None:
         """
         Sets the status of the package to not ready
 
         :return: None
         :attribute: status: PackageStatus.NOT_READY
         """
-        self.status = PackageStatus.NOT_READY
-    def mark_at_hub(self):
+        self.status = PackageStatus.NOT_READY 
+    def mark_at_hub(self) -> None:
         """
         Sets the status of the package to at hub
 
@@ -117,7 +117,7 @@ class Package:
         :attribute: status: PackageStatus.AT_HUB
         """
         self.status = PackageStatus.AT_HUB
-    def mark_in_route(self):
+    def mark_in_route(self) -> None:
         """
         Sets the status of the package to in route
 
@@ -125,7 +125,7 @@ class Package:
         :attribute: status: PackageStatus.IN_ROUTE
         """
         self.status = PackageStatus.IN_ROUTE
-    def mark_delivered(self):
+    def mark_delivered(self) -> None:
         """
         Sets the status of the package to delivered
 
@@ -134,7 +134,7 @@ class Package:
         """
         self.status = PackageStatus.DELIVERED
 
-    def on_truck1(self):
+    def on_truck1(self) -> None:
         """
         Sets the truck carrier of the package to truck 1
 
@@ -142,7 +142,7 @@ class Package:
         :attribute: truck_carrier: TruckCarrier.TRUCK_1
         """
         self.truck_carrier = TruckCarrier.TRUCK_1
-    def on_truck2(self):
+    def on_truck2(self) -> None:
         """
         Sets the truck carrier of the package to truck 2
 
@@ -150,7 +150,7 @@ class Package:
         :attribute: truck_carrier: TruckCarrier.TRUCK_2
         """
         self.truck_carrier = TruckCarrier.TRUCK_2
-    def on_truck3(self):
+    def on_truck3(self) -> None:
         """
         Sets the truck carrier of the package to truck 3
 
@@ -159,9 +159,9 @@ class Package:
         """
         self.truck_carrier = TruckCarrier.TRUCK_3
 
-    def get_truck_carrier(self):
+    def get_truck_carrier(self) -> str:
         """
-        Returns the truck carrier of the package
+        Returns string of the truck carrier of the package
 
         :return: str
         :attribute: truck_carrier: TruckCarrier.TRUCK_1, TruckCarrier.TRUCK_2, TruckCarrier.TRUCK_3, or TruckCarrier.NONE
@@ -175,37 +175,36 @@ class Package:
         elif self.truck_carrier == TruckCarrier.NONE:
             return "None"
 
-    def set_delivery_time(self, delivery_time: datetime):
+    def set_delivery_time(self, delivery_time: datetime) -> None:
         """
         Sets the delivery time of the package
 
         :param delivery_time: the time the package was delivered
         :type delivery_time: datetime
 
-
         """
         self.delivery_time = delivery_time
 
-    def set_departure_time(self, departure_time: datetime.time):
+    def set_departure_time(self, departure_time: datetime) -> None:
         """
         Sets the departure time of the package
         """
         self.departure_time = departure_time
 
-    def get_address_w_zip(self):
+    def get_address_w_zip(self) -> str:
         """
         Returns address that is usable when referencing the listed address for the Package in DistanceMap
         """
         address_w_zip = (f"{self.address}({self.zip_code})")
         return address_w_zip
 
-    def set_address_w_zip(self, address_w_zip):
+    def set_address_w_zip(self, address_w_zip: str) -> None:
         """
         Sets the address with zip code of the package
         """
         self.address_w_zip = address_w_zip
 
-    def set_full_address(self, address, city, state, zip_code):
+    def set_full_address(self, address: str, city: str, state: str, zip_code: str) -> None:
         """
         Sets the full address of the package
         """
@@ -214,13 +213,13 @@ class Package:
         self.state = state
         self.zip_code = zip_code
 
-    def get_siblings(self):
+    def get_siblings(self) -> list[int]:
         """
         Returns the packages that are at the same address as the current package
         """
         return self.packages_at_same_address
 
-    def set_packages_at_same_address(self, other_packages):
+    def set_packages_at_same_address(self, other_packages: list[int]) -> None:
         """
         Sets the packages that are at the same address as the current package
         """

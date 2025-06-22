@@ -1,5 +1,6 @@
 from wgups.Package import Package
 from collections import deque
+from typing import List, Optional
 
 import csv
 from datetime import datetime, time, timedelta
@@ -12,19 +13,43 @@ from wgups.datastore.DistanceMap import DistanceMap
 
 
 class Truck:
-    def __init__(self, truck_id:int = 0, capacity:int = 16, distance_map:DistanceMap = None, clock:SimulationClock = None):
-        self.packages_in_truck = deque()
+    """
+    A class representing a truck in the WGUPS simulation.
+    
+    The truck manages package loading, delivery, and route execution.
+    It tracks its location, distance traveled, and delivery status.
+    """
+    def __init__(self, truck_id: int = 0, capacity: int = 16, distance_map: Optional[DistanceMap] = None, clock: Optional[SimulationClock] = None):
+        """
+        Initializes a Truck object.
+        
+        :param truck_id: The ID of the truck (1, 2, or 3)
+        :param capacity: The maximum number of packages the truck can carry
+        :param distance_map: The distance map for calculating travel times
+        :param clock: The simulation clock for scheduling events
+        """
+        self.packages_in_truck = deque()  # Queue of packages to be delivered
         self.truck_id = truck_id
         self.capacity = capacity
         self.distance_map = distance_map
         self.clock = clock
-        self.location = 'HUB'
-        self.distance_travelled = 0.0
-        self.delivery_log = []
+        self.location = 'HUB'  # Current location, starts at HUB
+        self.distance_travelled = 0.0  # Total distance traveled in miles
+        self.delivery_log = []  # List of delivered packages for tracking
 
-    def load_packages(self, packages):
+    def load_packages(self, packages: List[Package]) -> deque:
+        """
+        Loads packages onto the truck and schedules the first delivery.
+        
+        This method marks packages as in route, assigns them to the specific truck,
+        sets their departure time, and schedules the delivery sequence.
+        
+        :param packages: List of packages to load onto the truck
+        :return: The queue of packages now on the truck
+        """
         for package in packages:
-            package.mark_in_route()
+            package.mark_in_route()  # Mark package as being delivered
+            # Assign package to specific truck (affects delivery tracking)
             if self.truck_id == 1:
                 package.on_truck1()
             elif self.truck_id == 2:
@@ -34,13 +59,22 @@ class Truck:
             else:
                 print("Invalid Truck ID")
                 break
-            package.set_departure_time(self.clock.now())
+            package.set_departure_time(self.clock.now())  # Record when truck left HUB
             self.packages_in_truck.append(package)
 
+        # Schedule the first delivery to start the delivery sequence
         self.clock.schedule_event(self.clock.now(), self.deliver_package, 0)
         return self.packages_in_truck
 
-    def add_package(self, package:Package):
+    def add_package(self, package: Package) -> None:
+        """
+        Adds a single package to the truck without starting delivery.
+        
+        This is used for adding packages to an already loaded truck.
+        
+        :param package: The package to add to the truck
+        """
+        # Assign package to specific truck (affects delivery tracking)
         if self.truck_id == 1:
             package.on_truck1()
         elif self.truck_id == 2:
@@ -51,28 +85,43 @@ class Truck:
             print("Invalid Truck ID")
         self.packages_in_truck.append(package)
 
-    def deliver_package(self, index=0):
+    def deliver_package(self, index: int = 0) -> None:
+        """
+        Delivers a package at the specified index and schedules the next delivery.
+        
+        This method calculates travel time, updates truck location and distance,
+        marks the package as delivered, and schedules the next delivery.
+        If all packages are delivered, it schedules return to HUB.
+        
+        :param index: Index of the package to deliver in the truck's package queue
+        """
+        # Check if all packages have been delivered
         if index >= len(self.packages_in_truck):
-            self.packages_in_truck.clear()
+            self.packages_in_truck.clear()  # Clear the package queue
             print(f"Truck {self.truck_id} delivered all packages in route at {self.clock.now().strftime('%H:%M')} and drives to HUB")
-            self.clock.schedule_event(self.clock.now(),
-                                      self.return_to_hub)
+            # Schedule return to HUB after all deliveries complete
+            self.clock.schedule_event(self.clock.now(), self.return_to_hub)
             return
 
         package = self.packages_in_truck[index]
+        # Calculate distance and travel time to package destination
         dist = self.distance_map.get_distance(self.location, package.address_w_zip)
         self.distance_travelled += dist
-        travel_time = timedelta(hours=dist / 18.0)
+        travel_time = timedelta(hours=dist / 18.0)  # 18 mph average speed
         delivery_time = self.clock.now() + travel_time
-        self.location = package.address_w_zip
+        self.location = package.address_w_zip  # Update truck location
 
+        # Mark package as delivered and record delivery time
         package.mark_delivered()
         package.set_delivery_time(delivery_time)
+        
+        # Check if package missed its deadline
         if package.deadline and package.delivery_time > package.deadline:
             print(f"Package: {package.package_id} missed Deadline: {package.deadline.time()} it was Delivered at: {package.delivery_time.time()}")
-        self.delivery_log.append(package)
+        
+        self.delivery_log.append(package)  # Add to delivery log for tracking
 
-        # Schedule the actual delivery event at the computed time
+        # Schedule the next delivery at the computed delivery time
         self.clock.schedule_event(
             delivery_time,
             self.deliver_package, index + 1
@@ -80,19 +129,32 @@ class Truck:
         print(
             f"[{delivery_time.strftime('%H:%M')}] (scheduled) Truck {self.truck_id} delivered package {package.package_id} to {package.address_w_zip}")
 
-    def return_to_hub(self):
+    def return_to_hub(self) -> str:
+        """
+        Returns the truck to the HUB after completing all deliveries.
+        
+        Calculates travel time and distance back to HUB, updates truck location,
+        and schedules the return journey.
+        
+        :return: Status message indicating truck location
+        """
         if self.location == 'HUB':
             return "truck is already at HUB"
+        
+        # Calculate distance and travel time back to HUB
         dist = self.distance_map.get_distance('HUB', self.location)
-        travel_time = timedelta(hours=dist / 18.0)
+        travel_time = timedelta(hours=dist / 18.0)  # 18 mph average speed
         finish_time = self.clock.now() + travel_time
         self.distance_travelled += dist
-        self.location = 'HUB'
-        print(
-            f"[{finish_time.strftime('%H:%M')}] (scheduled) Truck {self.truck_id} returns to HUB")
+        self.location = 'HUB'  # Update truck location to HUB
+        
+        print(f"[{finish_time.strftime('%H:%M')}] (scheduled) Truck {self.truck_id} returns to HUB")
         return "truck is now at HUB"
 
-    def test_packages_in_truck(self):
+    def test_packages_in_truck(self) -> None:
+        """
+        Prints all packages currently loaded on the truck for debugging purposes.
+        """
         print_list = [str(package) for package in self.packages_in_truck]
         print(print_list)
 
