@@ -4,6 +4,7 @@ from wgups.Package import Package
 from wgups.Routing import Routing
 from wgups.SimulationClock import SimulationClock
 from wgups.Truck import Truck
+
 from wgups.dataloader.PackageLoader import PackageLoader
 from wgups.datastore.PackageHashMap import PackageHashMap
 from wgups.datastore.DistanceMap import DistanceMap
