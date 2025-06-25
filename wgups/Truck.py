@@ -20,7 +20,7 @@ class Truck:
     The truck manages package loading, delivery, and route execution.
     It tracks its location, distance traveled, and delivery status.
     """
-    def __init__(self, truck_id: int = 0, capacity: int = 16, distance_map: Optional[DistanceMap] = None, clock: Optional[SimulationClock] = None):
+    def __init__(self, truck_id: int = 0, distance_map: Optional[DistanceMap] = None, clock: Optional[SimulationClock] = None):
         """
         Initializes a Truck object.
         
@@ -31,7 +31,8 @@ class Truck:
         """
         self.packages_in_truck = [] # Queue of packages to be delivered
         self.truck_id = truck_id
-        self.capacity = capacity
+        self.CAPACITY = 16
+        self.SPEED = 18.0
         self.distance_map = distance_map
         self.clock = clock
         self.location = 'HUB'  # Current location, starts at HUB

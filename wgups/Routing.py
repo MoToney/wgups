@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from wgups.Package import Package
+
 from wgups.SimulationClock import SimulationClock
 from wgups.datastore.DistanceMap import DistanceMap
 from wgups.datastore.PackageHashMap import PackageHashMap
@@ -28,6 +29,8 @@ class Routing:
         self.distance_map = distance_map # stores the distance map of the packages, which is used to calculate the distance between addresses
         self.packages = packages # stores the hash map of the packages
         self.clock = clock # stores the clock of the simulation
+
+        self.MAX_SIZE = 16
 
     def get_travel_time(self, current_stop: str, next_stop: str) -> timedelta:
         """
@@ -63,7 +66,7 @@ class Routing:
         package.set_address_w_zip("410 S State St(84111)") # sets the address with zip code of the package for use in the distance map
         package.wrong_address = False # sets the wrong address flag to False
 
-    def get_priority_queue(self, current_time:datetime, dispatched_packages: set, truck_id: int) -> list[tuple[int, Any]]:
+    def get_priority_queue(self, current_time:datetime, dispatched_packages: set, truck_id: int) -> (list[tuple[int, Any]], list[Package]):
         """
 
         Builds a priority queue of packages available for delivery with the following priority:
@@ -79,6 +82,7 @@ class Routing:
         :return: A priority queue of packages available for delivery
         """
         priority_queue = [] # initializes the priority queue
+        packages_in_pq = [] # this will be referenced in self.select_packages_by_priority
         grouped = set() # initializes the set of grouped packages to avoid duplicates
 
         #checks if the package is in the grouped set, has been visited, has the wrong address, is not available, or is required for another truck
@@ -115,12 +119,14 @@ class Routing:
                     groupmate = self.packages[pid]
                     grouped.add(groupmate.package_id)
                     group.append(groupmate.package_id)
+                    packages_in_pq.append(groupmate)
                 priority_queue.append((priority, group)) # add the grouped packages to the priority queue with the priority established above
                 continue
 
             # if the package is required for this truck, the priority is 1
             if package.required_truck == truck_id:
                 priority_queue.append((1, package.package_id)) # add the package to the priority queue with the priority of 1
+                packages_in_pq.append(package)
                 continue
 
             """
@@ -129,42 +135,24 @@ class Routing:
             """
             if package.deadline and not package.must_be_delivered_with:
                 priority_queue.append((3, package.package_id))
+                packages_in_pq.append(package)
                 continue
 
-            """if not package.deadline:
-                skip_this_package = False
-                siblings = package.get_siblings()  # get all other package IDs at the same address
-                if siblings:
-                    for sid in siblings:
-                        if sid == package.package_id:
-                            continue
-                        sibling = self.packages[sid]
-                        if sibling.available_time is not None and sibling.available_time > current_time:
-                            skip_this_package = True
-                            break
-                        if sibling.wrong_address:
-                            skip_this_package = True
-                            break
-                        if sibling.required_truck and sibling.required_truck != truck_id:
-                            skip_this_package = True
-                            break
-                if skip_this_package:
-                    continue  # do not add this package to the queue"""
             # if the package has no deadline, not required for by any truck, and is not grouped with other packages, the priority is 5
             priority_queue.append((5, package.package_id))
+            packages_in_pq.append(package)
 
         priority_queue.sort(key=lambda x: x[0], reverse=True) # sort in ascending order so more prioritized packages are first
-        return priority_queue
+        return priority_queue, packages_in_pq
 
-    def select_packages_by_priority(self, priority_queue: list[tuple[int, Any]], current_time:datetime, dispatched_packages: set, max_size: int) -> list[int]:
+    def select_packages_by_priority(self, priority_queue: list[tuple[int, Any]], packages_in_pq: list[Package], current_time:datetime) -> list[int]:
         """
         Selects the packages to be delivered by the truck based on the priority of the package
         and its distance from other packages that are also being delivered
 
         :param priority_queue: The priority queue of packages
         :param current_time: The current time of the simulation
-        :param dispatched_packages: The set of packages that have already been dispatched to trucks
-        :param max_size: The maximum size of the truck
+        :param packages_in_pq: The packages that were in the original priority queue prior to popping any packages
 
         :return: A list of packages to be delivered by the truck
         """
@@ -176,7 +164,7 @@ class Routing:
 
 
         # while the priority queue is not empty and the truck has not reached its maximum size
-        while priority_queue and len(primary) < max_size:
+        while priority_queue and len(primary) < self.MAX_SIZE:
             prio, package_id = priority_queue.pop()
 
             if package_id in primary:
@@ -192,7 +180,7 @@ class Routing:
                 if not isinstance(package_id, list):
                     raise TypeError("package_id in priority 2 must be a list")
 
-                if len(package_id) > (max_size - len(primary)):
+                if len(package_id) > (self.MAX_SIZE - len(primary)):
                     continue  # skip if group can't fit
 
                 grouped_packages_w_deadline = [] # initializes the list of packages with a deadline
@@ -221,7 +209,7 @@ class Routing:
                     # iterate through the packages in the group
                     for pid in package_id:
                         # if the package is not already in the list of packages to be delivered and the truck has not reached its maximum size, add the package to the list
-                        if pid not in primary and len(primary) < max_size:
+                        if pid not in primary and len(primary) < self.MAX_SIZE:
                             primary.append(pid)
                     mock_time = local_time # updates the mock time of the truck
                     current_location = local_location # updates the current location of the truck
@@ -229,7 +217,7 @@ class Routing:
             # check the packages that are already in the list of packages to be delivered to see if there are packages at the same address that are not already in the list
             for pid in primary:
                 pkg = self.packages[pid]
-                self.add_siblings_to_primary(pkg, primary, priority_queue, max_size)
+                primary = self.add_siblings_to_primary(pkg, primary, packages_in_pq)
 
             # if the package is not grouped with other packages and has a deadline
             if prio == 3:
@@ -246,58 +234,38 @@ class Routing:
             if prio == 4:
                 raise ValueError("Priority 4 should not happen.")
 
-        p3_and_p5 = p3_packages + p5_packages # reference list used to ensure siblings are added if they are eligible
         # after all packages have been checked, handle the packages with a deadline, starting with the earliest deadline
         for dline in sorted({pkg.deadline for pkg in p3_packages if pkg.deadline}):
             batch = [pkg for pkg in p3_packages if pkg.deadline == dline] # get all the packages with the same deadline
             sorted_batch = self.sort_nearest_neighbors(batch, current_location) # sort the packages by the nearest neighbor
             for pkg in sorted_batch:
-                if pkg.package_id not in primary and len(primary) < max_size:
+                if pkg.package_id not in primary and len(primary) < self.MAX_SIZE:
                     eta = self.get_estimated_delivery_time(mock_time, current_location, pkg.address_w_zip)
                     if eta <= pkg.deadline:
                         primary.append(pkg.package_id)
                         current_location = pkg.address_w_zip
-                        siblings = pkg.get_siblings()
-                        if siblings:
-                            # iterate through the siblings
-                            for sid in siblings:
-                                # if the sibling is not the current package, is not already in the list of packages to be delivered, and the truck has not reached its maximum size, and the sibling is in the priority queue, add the sibling to the list of eligible siblings
-                                if (sid != pkg.package_id and
-                                        sid not in primary and
-                                        len(primary) < max_size and
-                                        self.packages[sid] in p3_and_p5):
-                                    primary.append(sid)
+                        mock_time = eta
+                        primary = self.add_siblings_to_primary(pkg, primary, packages_in_pq)
 
         # if the truck has not reached its maximum size, and there are packages with no special conditions, add the packages to the list of packages to be delivered
-        if len(primary) < max_size and p5_packages:
+        if len(primary) < self.MAX_SIZE and p5_packages:
             sorted_p5 = self.sort_nearest_neighbors(p5_packages, current_location) # sort the packages with no special conditions by the nearest neighbor
             # iterate through the sorted packages
             for pkg in sorted_p5:
                 # if the package is not already in the list of packages to be delivered, and the truck has not reached its maximum size, add the package to the list of packages to be delivered
-                if pkg.package_id not in primary and len(primary) < max_size:
+                if pkg.package_id not in primary and len(primary) < self.MAX_SIZE:
                     primary.append(pkg.package_id) # add the package to the list of packages to be delivered
-                    siblings = pkg.get_siblings()
-                    if siblings:
-                        # iterate through the siblings
-                        for sid in siblings:
-                            # if the sibling is not the current package, is not already in the list of packages to be delivered, and the truck has not reached its maximum size, and the sibling is in the priority queue, add the sibling to the list of eligible siblings
-                            if (sid != pkg.package_id and
-                                    sid not in primary and
-                                    len(primary) < max_size and
-                                    self.packages[sid] in p3_and_p5):
-                                primary.append(sid)
-
+                    primary = self.add_siblings_to_primary(pkg, primary, packages_in_pq)
 
         return primary
 
-    def get_eligible_siblings(self, package: Package, primary: list[int], priority_queue: list[tuple[int, Any]], max_size: int) -> list[int]:
+    def get_eligible_siblings(self, package: Package, primary: list[int], packages_in_pq: list[Package]) -> list[int]:
         """
         Gets eligible sibling packages that can be added to the delivery list
         
         :param package: The package to find siblings for
         :param primary: The current list of packages to be delivered
-        :param priority_queue: The priority queue of packages
-        :param max_size: The maximum size of the truck
+        :param packages_in_pq: The packages that are in the priority queue
         :return: List of eligible sibling package IDs
         """
         eligible_siblings = [] # initializes the list of eligible siblings
@@ -310,54 +278,25 @@ class Routing:
                 # if the sibling is not the current package, is not already in the list of packages to be delivered, and the truck has not reached its maximum size, and the sibling is in the priority queue, add the sibling to the list of eligible siblings
                 if (sid != package.package_id and
                     sid not in primary and
-                    len(primary) < max_size and # if the truck has not reached its maximum size
-                    self.is_package_in_priority_queue(priority_queue, sid)):
+                    len(primary) < self.MAX_SIZE and # if the truck has not reached its maximum size
+                    self.packages[sid] in packages_in_pq):
                     eligible_siblings.append(sid) # add the sibling to the list of eligible siblings
-
         return eligible_siblings
 
-    def add_siblings_to_primary(self, package: Package, primary: list[int], priority_queue: list[tuple[int, Any]], max_size: int) -> None:
+    def add_siblings_to_primary(self, package: Package, primary: list[int], packages_in_pq: list[Package]) -> list[int]:
         """
         Adds eligible sibling packages to the primary delivery list
         
         :param package: The package to find siblings for
         :param primary: The current list of packages to be delivered
-        :param priority_queue: The priority queue of packages
-        :param max_size: The maximum size of the truck
+        :param packages_in_pq: The packages in the priority queue
         """
-        eligible_siblings = self.get_eligible_siblings(package, primary, priority_queue, max_size) # gets the eligible siblings
+        eligible_siblings = self.get_eligible_siblings(package, primary, packages_in_pq) # gets the eligible siblings
         mock_primary = primary
         for sid in eligible_siblings:
-            mock_primary.append(sid) # add the eligible sibling to the list of packages to be delivered
-
+            if len(mock_primary) < self.MAX_SIZE:
+                mock_primary.append(sid) # add the eligible sibling to the list of packages to be delivered
         return mock_primary
-
-    def is_package_in_priority_queue(self, priority_queue: list[tuple[int, Any]], pid_to_find: int) -> bool:
-        """
-        Checks if a package is in the priority queue
-        
-        :param priority_queue: The priority queue of packages
-        :param pid_to_find: The package ID to find
-        :return: True if the package is in the priority queue, False otherwise
-        """
-        # iterate through the priority queue
-        for priority, item in priority_queue:
-            # if the item is a list
-            if isinstance(item, list):
-                # iterate through the list
-                for sub in item:
-                    # if the sub item is a tuple
-                    if isinstance(sub, tuple):
-                        # if the second item in the tuple is the package ID to find, return True
-                        if sub[1] == pid_to_find:
-                            return True
-                    # if the sub item is the package ID to find, return True
-                    elif sub == pid_to_find:
-                        return True
-            # if the item is the package ID to find, return True
-            elif item == pid_to_find:
-                return True
-        return False
 
     def sort_packages_by_deadline(self, prioritized_packages: list[int]) -> tuple[list[tuple[datetime, list[Package]]], list[Package]]:
         deadline_groups = []
@@ -661,8 +600,8 @@ class Routing:
         :param dispatched_packages: The packages that have been dispatched
         :return: The completed route, the completion time, the miles travelled, and the dispatched packages
         """
-        priority_queue = self.get_priority_queue(current_time, dispatched_packages, route_id)
-        priorities = self.select_packages_by_priority(priority_queue, current_time, dispatched_packages, 16)
+        priority_queue, packages_in_pq = self.get_priority_queue(current_time, dispatched_packages, route_id)
+        priorities = self.select_packages_by_priority(priority_queue, packages_in_pq, current_time)
         final_route, final_time, final_miles_travelled, final_dispatched_packages = self.sort_packages(priorities, current_time, dispatched_packages)
 
         return final_route, final_time, final_miles_travelled, final_dispatched_packages

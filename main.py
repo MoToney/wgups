@@ -35,8 +35,8 @@ route1, time1, miles1, dispatched1 = routing.build_route(1, START_TIME, set())  
 route2, time2, miles2, dispatched2 = routing.build_route(2, START_TIME, dispatched1)  # Second truck route
 
 # Initialize trucks
-truck1 = Truck(1, CAPACITY, distances, clock)
-truck2 = Truck(2, CAPACITY, distances, clock)
+truck1 = Truck(1, distances, clock)
+truck2 = Truck(2, distances, clock)
 
 # Schedule package loading events for both trucks
 clock.schedule_event(START_TIME, truck1.load_packages, route1)
@@ -51,7 +51,7 @@ first_completion_time = min(time1, time2)
 clock.run_until(first_completion_time)
 
 # Initialize third truck and build its route
-truck3 = Truck(3, CAPACITY, distances, clock)
+truck3 = Truck(3, distances, clock)
 route3, time3, miles3, dispatched3 = routing.build_route(3, clock.now(), dispatched2)
 clock.schedule_event(clock.now(), truck3.load_packages, route3)
 print(f"Truck 3: {miles3:.2f} miles, {time3.strftime('%H:%M')}, {len(route3)} packages")
