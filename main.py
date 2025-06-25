@@ -76,13 +76,30 @@ else:
 # Run simulation to end of day
 clock.run_until(END_TIME)
 
+def get_truck_distance_at_time(truck: Truck, query_time: datetime) -> float:
+    if truck.delivery_log[0][0] > query_time:
+        return 0.0
+
+    i,j = 0,len(truck.delivery_log)-1
+    while i <= j:
+        mid = (i + j) // 2
+        if truck.delivery_log[mid][0] == query_time:
+            return truck.delivery_log[mid][1]
+        elif truck.delivery_log[mid][0] < query_time:
+            distance = truck.delivery_log[mid][1]
+            i = mid + 1
+        else:
+            j = mid - 1
+
+    return distance
+
 def get_package_status_at_time(package: Package, query_time: datetime) -> str:
     """
     Returns the status of a package at a specific time.
-    
+
     This function determines the delivery status of a package based on its
     availability time, departure time, and delivery time relative to the query time.
-    
+
     :param package: The package to check status for
     :param query_time: The time to check status at
     :return: A string describing the package status at the specified time
@@ -90,27 +107,38 @@ def get_package_status_at_time(package: Package, query_time: datetime) -> str:
     # Check if package is not yet available (has delayed availability)
     if package.available_time and query_time < package.available_time:
         return f"Package {package.package_id}: Not Available as of {query_time.strftime('%H:%M')}"
-    
+
     # Check if package is still at the hub (hasn't departed yet)
     if package.departure_time is None or query_time < package.departure_time:
         return f"Package {package.package_id}: At Hub as of {query_time.strftime('%H:%M')}"
-    
+
     # Check if package is en route (departed but not yet delivered)
     elif package.departure_time <= query_time < package.delivery_time:
         return f"Package {package.package_id}: En Route on {package.get_truck()} as of {query_time.strftime('%H:%M')}"
-    
+
     # Check if package has been delivered
     elif package.delivery_time is not None and query_time >= package.delivery_time:
         return f"Package {package.package_id}: Delivered by {package.get_truck()} at {package.delivery_time.strftime('%H:%M')}"
-    
+
     # Fallback case for unexpected states
     else:
         return f"Package {package.package_id}: Status Unknown as of {query_time.strftime('%H:%M')}"
 
+def get_all_truck_distances_at_time(query_time: datetime) -> None:
+    truck1_distance = get_truck_distance_at_time(truck1, query_time)
+    truck2_distance = get_truck_distance_at_time(truck2, query_time)
+    truck3_distance = get_truck_distance_at_time(truck3, query_time)
+
+    total_miles = truck1_distance + truck2_distance + truck3_distance
+    print(f"Total miles traveled by all trucks: {total_miles:.2f} at {query_time.strftime('%H:%M')}")
+    print(f"Truck 1 Mileage: {truck1_distance:.2f}")
+    print(f"Truck 2 Mileage: {truck2_distance:.2f}")
+    print(f"Truck 3 Mileage: {truck3_distance:.2f}")
+
 def get_all_packages_at_time(query_time: datetime) -> None:
     """
     Prints the status of all packages at a specific time.
-    
+
     :param query_time: The time to check all package statuses at
     """
     print(f"\nStatus at {query_time.strftime('%H:%M')}:")
@@ -121,7 +149,7 @@ def get_all_packages_at_time(query_time: datetime) -> None:
 def get_user_time_input() -> Optional[datetime]:
     """
     Gets time input from user with validation.
-    
+
     :return: datetime object with user input, or None if input is invalid
     """
     try:
@@ -158,18 +186,21 @@ def display_total_mileage() -> None:
 get_all_packages_at_time(datetime(1900,1,1,17,0))
 print(f"\nTotal mileage: {miles1 + miles2 + miles3 + miles4:.2f}")
 
+
 # Ma\in menu loop
 while True:
     print("\nWelcome to the WGUPS Menu")
     print("1. Get Delivery Status of a Package at a Specified Time")
     print("2. Get Delivery Status of all Packages at a Specified Time")
-    print("3. View Total Miles Travelled by all Trucks")
-    print("4. Exit")
+    print("3. Get Total Miles Travelled by a Truck at a Specified Time")
+    print("4. Get Total Miles Travelled by all Trucks at a Specified Time")
+    print("5. Get Delivery Status of all Packages and Miles Travelled by all Trucks at a Specified Time")
+    print("6. Exit")
     
     try:
         choice = int(input("Enter a number: "))
-        if choice not in (1, 2, 3, 4):
-            print("Invalid number, pick a number from 1 to 4")
+        if choice not in (1, 2, 3, 4, 5, 6):
+            print("Invalid number, pick a number from 1 to 6")
             continue
     except ValueError:
         print("Invalid input. Please enter a number.")
@@ -200,13 +231,48 @@ while True:
         query_time = get_user_time_input()
         if query_time is None:
             continue
-
         get_all_packages_at_time(query_time)
 
     elif choice == 3:
-        display_total_mileage()
+        try:
+            truck_id = int(input("Enter Truck ID: "))
+            if truck_id not in (1, 2, 3):
+                print("Invalid Truck ID, pick a number from 1 to 3")
+                continue
+        except ValueError:
+            print("Invalid input. Please enter number 1, 2, or 3.")
+            continue
+
+        # Get time from user
+        query_time = get_user_time_input()
+        if query_time is None:
+            continue
+        match truck_id:
+            case 1:
+                print(f"Truck 1 Mileage at {query_time.strftime('%H:%M')}: {get_truck_distance_at_time(truck1, query_time):.2f}")
+            case 2:
+                print(f"Truck 2 Mileage at {query_time.strftime('%H:%M')}: {get_truck_distance_at_time(truck2, query_time):.2f}")
+            case 3:
+                print(f"Truck 3 Mileage at {query_time.strftime('%H:%M')}: {get_truck_distance_at_time(truck3, query_time):.2f}")
+            case _:
+                print("Invalid Truck ID, pick a number from 1 to 3")
 
     elif choice == 4:
+        query_time = get_user_time_input()
+        if query_time is None:
+            continue
+        get_all_truck_distances_at_time(query_time)
+
+    elif choice == 5:
+        # Get time from user
+        query_time = get_user_time_input()
+        if query_time is None:
+            continue
+
+        get_all_packages_at_time(query_time)
+        get_all_truck_distances_at_time(query_time)
+
+    elif choice == 6:
         print("Program Terminated")
         break
 

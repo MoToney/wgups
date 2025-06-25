@@ -25,11 +25,11 @@ class Truck:
         Initializes a Truck object.
         
         :param truck_id: The ID of the truck (1, 2, or 3)
-        :param capacity: The maximum number of packages the truck can carry
         :param distance_map: The distance map for calculating travel times
         :param clock: The simulation clock for scheduling events
         """
         self.packages_in_truck = [] # Queue of packages to be delivered
+        self.delivery_log = []  # List of delivered packages for tracking
         self.truck_id = truck_id
         self.CAPACITY = 16
         self.SPEED = 18.0
@@ -37,7 +37,6 @@ class Truck:
         self.clock = clock
         self.location = 'HUB'  # Current location, starts at HUB
         self.distance_travelled = 0.0  # Total distance traveled in miles
-        self.delivery_log = []  # List of delivered packages for tracking
 
     def load_packages(self, packages: List[Package]) -> list:
         """
@@ -122,7 +121,7 @@ class Truck:
         if package.deadline and package.delivery_time > package.deadline:
             print(f"Package: {package.package_id} missed Deadline: {package.deadline.time()} it was Delivered at: {package.delivery_time.time()}")
         
-        self.delivery_log.append(package)  # Add to delivery log for tracking
+        self.delivery_log.append((delivery_time, self.distance_travelled, str(package), self.location))  # Add to delivery log for tracking
 
         # Schedule the next delivery at the computed delivery time
         self.clock.schedule_event(
@@ -150,6 +149,9 @@ class Truck:
         finish_time = self.clock.now() + travel_time
         self.distance_travelled += dist
         self.location = 'HUB'  # Update truck location to HUB
+
+        self.delivery_log.append(
+            (finish_time, self.distance_travelled, "HUB", self.location))  # Add to delivery log for tracking
         
         print(f"[{finish_time.strftime('%H:%M')}] (scheduled) Truck {self.truck_id} returns to HUB")
         return "truck is now at HUB"
