@@ -24,7 +24,7 @@ distances = DistanceMap("data/distances.csv")  # Load distance data from CSV
 routing = Routing(distances, packages, clock)  # Initialize routing system
 
 # Schedule special events for package availability and address updates
-clock.schedule_event(datetime(1900, 1, 1, 9, 5), routing.make_available, 6)  # Make package 6 available at 9:05 AM
+
 clock.schedule_event(datetime(1900, 1, 1, 10, 20), routing.update_address, 9)  # Update package 9's address at 10:20 AM
 
 # Run simulation to start time to process any initial events
@@ -65,11 +65,13 @@ clock.run_until(simulation_time)
 if time1 < time2:
     route4, time4, miles4, vis4 = routing.build_route(2, clock.now(), dispatched3) # builds the route for truck 2
     clock.schedule_event(clock.now(), truck2.load_packages, route4) # schedules the event to load the packages for truck 2
+    print(f"Truck 2: {miles4:.2f} miles, {time4.strftime('%H:%M')}, {len(route4)} packages")
 
 # if truck 2 is done delivering before truck 1, build the last route for truck 1
 else:
     route4, time4, miles4, vis4 = routing.build_route(1, clock.now(), dispatched3) # builds the route for truck 1
     clock.schedule_event(clock.now(), truck1.load_packages, route4) # schedules the event to load the packages for truck 1
+    print(f"Truck 1: {miles4:.2f} miles, {time4.strftime('%H:%M')}, {len(route4)} packages")
 
 # Run simulation to end of day
 clock.run_until(END_TIME)
@@ -95,11 +97,11 @@ def get_package_status_at_time(package: Package, query_time: datetime) -> str:
     
     # Check if package is en route (departed but not yet delivered)
     elif package.departure_time <= query_time < package.delivery_time:
-        return f"Package {package.package_id}: En Route on {package.get_truck_carrier()} as of {query_time.strftime('%H:%M')}"
+        return f"Package {package.package_id}: En Route on {package.get_truck()} as of {query_time.strftime('%H:%M')}"
     
     # Check if package has been delivered
     elif package.delivery_time is not None and query_time >= package.delivery_time:
-        return f"Package {package.package_id}: Delivered by {package.get_truck_carrier()} at {package.delivery_time.strftime('%H:%M')}"
+        return f"Package {package.package_id}: Delivered by {package.get_truck()} at {package.delivery_time.strftime('%H:%M')}"
     
     # Fallback case for unexpected states
     else:
@@ -153,10 +155,10 @@ def display_total_mileage() -> None:
     print(f"Truck 3 Mileage: {truck3.distance_travelled:.2f}")
 
 # Display initial status and statistics
-get_all_packages_at_time(START_TIME)
+get_all_packages_at_time(datetime(1900,1,1,17,0))
 print(f"\nTotal mileage: {miles1 + miles2 + miles3 + miles4:.2f}")
 
-# Main menu loop
+# Ma\in menu loop
 while True:
     print("\nWelcome to the WGUPS Menu")
     print("1. Get Delivery Status of a Package at a Specified Time")

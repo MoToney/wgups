@@ -54,9 +54,15 @@ class Package:
         departure_time (datetime or None): The time the package was loaded onto a truck and left the hub
         truck_carrier (TruckCarrier): The truck that is associated with the package
     """
-    def __init__(self, package_id: int = 0, address: str = None, city: str = None, zip_code: str = None,
+    def __init__(self,
+                 package_id: int = 0,
+                 address: str = "",
+                 city: str = "",
+                 zip_code: str = "",
                  state: str = "Utah",
-                 deadline: datetime = None, weight:float = None, note: dict = None,
+                 deadline: Optional[datetime] = None,
+                 weight:Optional[float] = None,
+                 note: Optional[str] = None,
                  status: PackageStatus = PackageStatus.NOT_READY
                  ):
         """
@@ -85,7 +91,7 @@ class Package:
         self.zip_code = zip_code
         self.deadline = deadline
         self.weight = weight
-        self.special_note = note
+        self.note = note if note is not None else ""
         self.status = status
 
         self.address_w_zip = self.get_address_w_zip() # this is for standardization with the addresses in distances.csv
@@ -93,73 +99,21 @@ class Package:
         self.must_be_delivered_with: Optional[list[int]] = None # stores the ids of packages that must be delivered at the same time as the package
         self.available_time: Optional[datetime] = None # stores the time the package is available to be delivered
         self.required_truck: Optional[int] = None # stores the truck that is required to deliver the package, if any
-        self.wrong_address: Optional[bool] = False # stores whether the package has the wrong address, default is False
+        self.wrong_address: bool = False # stores whether the package has the wrong address, default is False
 
-        self.packages_at_same_address: Optional[Package] = None # stores the package that is at the same address as the current package, if any
+        self.packages_at_same_address: Optional[list[int]] = None # stores the package that is at the same address as the current package, if any
 
-        self.delivery_time = None 
-        self.departure_time = None
-        self.truck_carrier = TruckCarrier.NONE
+        self.delivery_time: Optional[datetime] = None
+        self.departure_time: Optional[datetime] = None
+        self.truck_carrier: TruckCarrier = TruckCarrier.NONE
 
-    def mark_not_ready(self) -> None:
-        """
-        Sets the status of the package to not ready
+    def set_status(self, status: PackageStatus):
+        self.status = status
 
-        :return: None
-        :attribute: status: PackageStatus.NOT_READY
-        """
-        self.status = PackageStatus.NOT_READY 
-    def mark_at_hub(self) -> None:
-        """
-        Sets the status of the package to at hub
+    def set_truck(self, truck: TruckCarrier) -> None:
+        self.truck_carrier = truck
 
-        :return: None
-        :attribute: status: PackageStatus.AT_HUB
-        """
-        self.status = PackageStatus.AT_HUB
-    def mark_in_route(self) -> None:
-        """
-        Sets the status of the package to in route
-
-        :return: None
-        :attribute: status: PackageStatus.IN_ROUTE
-        """
-        self.status = PackageStatus.IN_ROUTE
-    def mark_delivered(self) -> None:
-        """
-        Sets the status of the package to delivered
-
-        :return: None
-        :attribute: status: PackageStatus.DELIVERED
-        """
-        self.status = PackageStatus.DELIVERED
-
-    def on_truck1(self) -> None:
-        """
-        Sets the truck carrier of the package to truck 1
-
-        :return: None
-        :attribute: truck_carrier: TruckCarrier.TRUCK_1
-        """
-        self.truck_carrier = TruckCarrier.TRUCK_1
-    def on_truck2(self) -> None:
-        """
-        Sets the truck carrier of the package to truck 2
-
-        :return: None
-        :attribute: truck_carrier: TruckCarrier.TRUCK_2
-        """
-        self.truck_carrier = TruckCarrier.TRUCK_2
-    def on_truck3(self) -> None:
-        """
-        Sets the truck carrier of the package to truck 3
-
-        :return: None
-        :attribute: truck_carrier: TruckCarrier.TRUCK_3
-        """
-        self.truck_carrier = TruckCarrier.TRUCK_3
-
-    def get_truck_carrier(self) -> str:
+    def get_truck(self) -> str:
         """
         Returns string of the truck carrier of the package
 
@@ -173,7 +127,9 @@ class Package:
         elif self.truck_carrier == TruckCarrier.TRUCK_3:
             return "Truck 3"
         elif self.truck_carrier == TruckCarrier.NONE:
-            return "None"
+            return "No Truck"
+        else:
+            return "Error"
 
     def set_delivery_time(self, delivery_time: datetime) -> None:
         """
@@ -232,7 +188,7 @@ class Package:
                 f"Weight: {self.weight} | "
                 f"Status: {self.status.name.replace('_', ' ').title()} | "
                 f"Delivery Time: {self.delivery_time} | "
-                f"Note: {self.special_note}")
+                f"Note: {self.note}")
 
 
 

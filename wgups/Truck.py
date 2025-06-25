@@ -1,4 +1,4 @@
-from wgups.Package import Package
+from wgups.Package import Package, TruckCarrier
 from collections import deque
 from typing import List, Optional
 
@@ -7,6 +7,7 @@ from datetime import datetime, time, timedelta
 
 from wgups.Routing import Routing
 from wgups.SimulationClock import SimulationClock
+from wgups.Package import TruckCarrier, PackageStatus
 from wgups.dataloader.PackageLoader import PackageLoader
 from wgups.datastore.PackageHashMap import PackageHashMap
 from wgups.datastore.DistanceMap import DistanceMap
@@ -28,7 +29,7 @@ class Truck:
         :param distance_map: The distance map for calculating travel times
         :param clock: The simulation clock for scheduling events
         """
-        self.packages_in_truck = deque()  # Queue of packages to be delivered
+        self.packages_in_truck = [] # Queue of packages to be delivered
         self.truck_id = truck_id
         self.capacity = capacity
         self.distance_map = distance_map
@@ -37,7 +38,7 @@ class Truck:
         self.distance_travelled = 0.0  # Total distance traveled in miles
         self.delivery_log = []  # List of delivered packages for tracking
 
-    def load_packages(self, packages: List[Package]) -> deque:
+    def load_packages(self, packages: List[Package]) -> list:
         """
         Loads packages onto the truck and schedules the first delivery.
         
@@ -48,14 +49,14 @@ class Truck:
         :return: The queue of packages now on the truck
         """
         for package in packages:
-            package.mark_in_route()  # Mark package as being delivered
+            package.set_status(PackageStatus.IN_ROUTE)
             # Assign package to specific truck (affects delivery tracking)
             if self.truck_id == 1:
-                package.on_truck1()
+                package.set_truck(TruckCarrier.TRUCK_1)
             elif self.truck_id == 2:
-                package.on_truck2()
+                package.set_truck(TruckCarrier.TRUCK_2)
             elif self.truck_id == 3:
-                package.on_truck3()
+                package.set_truck(TruckCarrier.TRUCK_3)
             else:
                 print("Invalid Truck ID")
                 break
@@ -74,13 +75,14 @@ class Truck:
         
         :param package: The package to add to the truck
         """
+        package.set_status(PackageStatus.IN_ROUTE)
         # Assign package to specific truck (affects delivery tracking)
         if self.truck_id == 1:
-            package.on_truck1()
+            package.set_truck(TruckCarrier.TRUCK_1)
         elif self.truck_id == 2:
-            package.on_truck2()
+            package.set_truck(TruckCarrier.TRUCK_2)
         elif self.truck_id == 3:
-            package.on_truck3()
+            package.set_truck(TruckCarrier.TRUCK_3)
         else:
             print("Invalid Truck ID")
         self.packages_in_truck.append(package)
@@ -97,7 +99,7 @@ class Truck:
         """
         # Check if all packages have been delivered
         if index >= len(self.packages_in_truck):
-            self.packages_in_truck.clear()  # Clear the package queue
+            self.packages_in_truck.clear()  # Clear the package list
             print(f"Truck {self.truck_id} delivered all packages in route at {self.clock.now().strftime('%H:%M')} and drives to HUB")
             # Schedule return to HUB after all deliveries complete
             self.clock.schedule_event(self.clock.now(), self.return_to_hub)
@@ -112,7 +114,7 @@ class Truck:
         self.location = package.address_w_zip  # Update truck location
 
         # Mark package as delivered and record delivery time
-        package.mark_delivered()
+        package.set_status(PackageStatus.DELIVERED)
         package.set_delivery_time(delivery_time)
         
         # Check if package missed its deadline

@@ -5,7 +5,6 @@ class DistanceMap:
     def __init__(self, file:str):
         self.addresses = [] # list of addresses
         self.matrix = [] # matrix of distances
-        self.address_to_index = {} # dictionary of addresses and their indices
         self.file = file # file containing the distance map
         self.load_from_file() # loads the distance map from the file
 
@@ -22,15 +21,25 @@ class DistanceMap:
             for i, row in enumerate(reader):
                 distances = [float(cell) if cell else 0.0 for cell in row[1:]] # converts the distances to floats
                 self.matrix.append(distances) # adds the distances to the matrix
-                self.address_to_index[row[0].strip()] = i # adds the address and its index to the dictionary
 
     def get_distance(self, addr1: str, addr2: str):
         """
         Returns the distance between two addresses.
         """
-        i = self.address_to_index[addr1] # gets the index of the first address
-        j = self.address_to_index[addr2] # gets the index of the second address
+        i = self.get_index(addr1) # gets the index of the first address
+        j = self.get_index(addr2) # gets the index of the second address
         return self.matrix[max(i, j)][min(i, j)] # returns the distance between the two addresses
+
+    def get_index(self, addr: str) -> int | None:
+        """
+        Returns the index of the address within the matrix.
+        :param addr:
+        :return: int
+        """
+        for i, row in enumerate(self.addresses):
+            if row == addr:
+                return i
+        return None
 
     def __str__(self):
         """
