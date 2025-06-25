@@ -99,6 +99,7 @@ class Routing:
             if package.required_truck and package.required_truck != truck_id:
                 continue
 
+
             #if the package is grouped with other packages
             if package.must_be_delivered_with:
                 priority = 4  # default priority for grouped packages without deadline
@@ -117,7 +118,7 @@ class Routing:
                 priority_queue.append((priority, group)) # add the grouped packages to the priority queue with the priority established above
                 continue
 
-            # if the package is required for this truck, the priority is 1  
+            # if the package is required for this truck, the priority is 1
             if package.required_truck == truck_id:
                 priority_queue.append((1, package.package_id)) # add the package to the priority queue with the priority of 1
                 continue
@@ -129,6 +130,26 @@ class Routing:
             if package.deadline and not package.must_be_delivered_with:
                 priority_queue.append((3, package.package_id))
                 continue
+
+            """if not package.deadline:
+                skip_this_package = False
+                siblings = package.get_siblings()  # get all other package IDs at the same address
+                if siblings:
+                    for sid in siblings:
+                        if sid == package.package_id:
+                            continue
+                        sibling = self.packages[sid]
+                        if sibling.available_time is not None and sibling.available_time > current_time:
+                            skip_this_package = True
+                            break
+                        if sibling.wrong_address:
+                            skip_this_package = True
+                            break
+                        if sibling.required_truck and sibling.required_truck != truck_id:
+                            skip_this_package = True
+                            break
+                if skip_this_package:
+                    continue  # do not add this package to the queue"""
             # if the package has no deadline, not required for by any truck, and is not grouped with other packages, the priority is 5
             priority_queue.append((5, package.package_id))
 
@@ -136,8 +157,8 @@ class Routing:
         return priority_queue
 
     def select_packages_by_priority(self, priority_queue: list[tuple[int, Any]], current_time:datetime, dispatched_packages: set, max_size: int) -> list[int]:
-        """ 
-        Selects the packages to be delivered by the truck based on the priority of the package 
+        """
+        Selects the packages to be delivered by the truck based on the priority of the package
         and its distance from other packages that are also being delivered
 
         :param priority_queue: The priority queue of packages
@@ -225,6 +246,7 @@ class Routing:
             if prio == 4:
                 raise ValueError("Priority 4 should not happen.")
 
+        p3_and_p5 = p3_packages + p5_packages # reference list used to ensure siblings are added if they are eligible
         # after all packages have been checked, handle the packages with a deadline, starting with the earliest deadline
         for dline in sorted({pkg.deadline for pkg in p3_packages if pkg.deadline}):
             batch = [pkg for pkg in p3_packages if pkg.deadline == dline] # get all the packages with the same deadline
@@ -234,9 +256,17 @@ class Routing:
                     eta = self.get_estimated_delivery_time(mock_time, current_location, pkg.address_w_zip)
                     if eta <= pkg.deadline:
                         primary.append(pkg.package_id)
-                        mock_time = eta  # <-- important fix here
                         current_location = pkg.address_w_zip
-                        self.add_siblings_to_primary(pkg, primary, priority_queue, max_size)
+                        siblings = pkg.get_siblings()
+                        if siblings:
+                            # iterate through the siblings
+                            for sid in siblings:
+                                # if the sibling is not the current package, is not already in the list of packages to be delivered, and the truck has not reached its maximum size, and the sibling is in the priority queue, add the sibling to the list of eligible siblings
+                                if (sid != pkg.package_id and
+                                        sid not in primary and
+                                        len(primary) < max_size and
+                                        self.packages[sid] in p3_and_p5):
+                                    primary.append(sid)
 
         # if the truck has not reached its maximum size, and there are packages with no special conditions, add the packages to the list of packages to be delivered
         if len(primary) < max_size and p5_packages:
@@ -246,11 +276,20 @@ class Routing:
                 # if the package is not already in the list of packages to be delivered, and the truck has not reached its maximum size, add the package to the list of packages to be delivered
                 if pkg.package_id not in primary and len(primary) < max_size:
                     primary.append(pkg.package_id) # add the package to the list of packages to be delivered
-                    self.add_siblings_to_primary(pkg, primary, priority_queue, max_size)
+                    siblings = pkg.get_siblings()
+                    if siblings:
+                        # iterate through the siblings
+                        for sid in siblings:
+                            # if the sibling is not the current package, is not already in the list of packages to be delivered, and the truck has not reached its maximum size, and the sibling is in the priority queue, add the sibling to the list of eligible siblings
+                            if (sid != pkg.package_id and
+                                    sid not in primary and
+                                    len(primary) < max_size and
+                                    self.packages[sid] in p3_and_p5):
+                                primary.append(sid)
 
 
         return primary
-    
+
     def get_eligible_siblings(self, package: Package, primary: list[int], priority_queue: list[tuple[int, Any]], max_size: int) -> list[int]:
         """
         Gets eligible sibling packages that can be added to the delivery list
@@ -263,18 +302,18 @@ class Routing:
         """
         eligible_siblings = [] # initializes the list of eligible siblings
         siblings = package.get_siblings() # gets the packages at the same address as the current package
-        
+
         # if the package has siblings
         if siblings:
             # iterate through the siblings
             for sid in siblings:
                 # if the sibling is not the current package, is not already in the list of packages to be delivered, and the truck has not reached its maximum size, and the sibling is in the priority queue, add the sibling to the list of eligible siblings
-                if (sid != package.package_id and 
-                    sid not in primary and 
+                if (sid != package.package_id and
+                    sid not in primary and
                     len(primary) < max_size and # if the truck has not reached its maximum size
                     self.is_package_in_priority_queue(priority_queue, sid)):
                     eligible_siblings.append(sid) # add the sibling to the list of eligible siblings
-        
+
         return eligible_siblings
 
     def add_siblings_to_primary(self, package: Package, primary: list[int], priority_queue: list[tuple[int, Any]], max_size: int) -> None:
@@ -287,8 +326,11 @@ class Routing:
         :param max_size: The maximum size of the truck
         """
         eligible_siblings = self.get_eligible_siblings(package, primary, priority_queue, max_size) # gets the eligible siblings
+        mock_primary = primary
         for sid in eligible_siblings:
-            primary.append(sid) # add the eligible sibling to the list of packages to be delivered
+            mock_primary.append(sid) # add the eligible sibling to the list of packages to be delivered
+
+        return mock_primary
 
     def is_package_in_priority_queue(self, priority_queue: list[tuple[int, Any]], pid_to_find: int) -> bool:
         """
@@ -352,7 +394,7 @@ class Routing:
             # if the deadline has only one package listed under it
             if len(group) == 1:
                 package = group[0] # get the package from the group
-                arrival_time = self.get_estimated_delivery_time(current_time, current_location, package.address_w_zip) 
+                arrival_time = self.get_estimated_delivery_time(current_time, current_location, package.address_w_zip)
                 slack_time = min(slack_time, (package.deadline - arrival_time)) # update the slack time
                 base_route.append(package) # add the package to the base route
                 current_location = package.address_w_zip
@@ -365,7 +407,7 @@ class Routing:
                     slack_time = min(slack_time, (package.deadline - arrival_time)) # update the slack time
                     base_route.append(package) # add the package to the base route
                     current_location = package.address_w_zip
-                    current_time = arrival_time 
+                    current_time = arrival_time
 
         return base_route, slack_time
 
@@ -380,7 +422,7 @@ class Routing:
         :return: List of feasible insertions as (time_added, counter, prev_stop, next_stop, package)
         """
         choices = []
-        
+
         for package in unprioritized_packages:
             previous_stop = starting_point
             time_prev_stop_to_package = None
@@ -407,7 +449,7 @@ class Routing:
                         # Compare with original direct route time
                         original_time = self.get_travel_time(previous_stop.address_w_zip, stop.address_w_zip)
                         should_insert = time_added < original_time
-                    
+
                     if should_insert:
                         choices.append((time_added, stop.package_id, previous_stop, stop, package))
 
@@ -447,7 +489,7 @@ class Routing:
             slack_time -= travel_time
             remaining_packages.remove(package)
             inserted_packages.add(package)
-            
+
             # Check for new feasible insertions after this insertion
             if insert_idx + 1 < len(base_route):
                 new_inserts = self.find_all_feasible_insertions(
@@ -458,7 +500,7 @@ class Routing:
                     if insertion[4] not in inserted_packages:  # package not already inserted
                         insertion_heap.append(insertion)
                 insertion_heap.sort(key=lambda x: x[0], reverse=True)
-                        
+
         return base_route, slack_time, remaining_packages
 
     def _find_insertion_index(self, base_route: list[Package], prev_stop: str | Package, next_stop: Package) -> int | None:
@@ -496,7 +538,7 @@ class Routing:
                 next_package = self.get_nearest_neighbor(packages_not_in_route, current_stop.address_w_zip)
             else:
                 break
-                
+
             route.append(next_package)
             current_stop = next_package
             packages_not_in_route.remove(next_package)
@@ -512,7 +554,7 @@ class Routing:
         :return: Completion time and total distance
         """
         distance_travelled = 0.0
-        
+
         for stop in route:
             if isinstance(stop, Package):
                 stop_address = stop.address_w_zip
@@ -545,8 +587,8 @@ class Routing:
         """
         if not packages:
             return None
-            
-        nearest_neighbor = min(packages, key=lambda pkg: self.distance_map.get_distance(current_location, pkg.address_w_zip)) 
+
+        nearest_neighbor = min(packages, key=lambda pkg: self.distance_map.get_distance(current_location, pkg.address_w_zip))
         return nearest_neighbor
 
     def sort_nearest_neighbors(self, pkgs: list[Package], start_location: str) -> list[Package]:
@@ -560,7 +602,7 @@ class Routing:
         route = []
         current = start_location
         to_visit = set(pkgs)
-        
+
         while to_visit:
             nearest = min(to_visit, key=lambda pkg: self.get_travel_time(current, pkg.address_w_zip))
             route.append(nearest)
@@ -606,7 +648,7 @@ class Routing:
             completed_route = self.build_regular_route(route=[], packages_not_in_route=regular_packages,
                                                        current_stop="HUB")
 
-        completed_time, miles_travelled = self.get_mock_completion_time_and_distance(completed_route, current_time, current_location)
+        completed_time, miles_travelled = self.get_mock_completion_time_and_distance(completed_route, current_time, "HUB")
 
         return completed_route, completed_time, miles_travelled, dispatched_packages
 
