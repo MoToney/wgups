@@ -114,9 +114,9 @@ def get_all_packages_at_time(query_time: datetime) -> None:
     :param query_time: The time to check all package statuses at
     """
     print(f"\nStatus at {query_time.strftime('%H:%M')}:")
-    for package in packages.packages_table:
-        if isinstance(package, Package):
-            print(get_package_status_at_time(package, query_time))
+    for p in packages.packages_table:
+        if isinstance(p, Package):
+            print(get_package_status_at_time(p, query_time))
 
 def get_user_time_input() -> Optional[datetime]:
     """
@@ -183,7 +183,7 @@ while True:
             print("Invalid input. Please enter a number.")
             continue
             
-        package = packages.search_package(package_id)
+        package = packages[package_id]
         if package is None:
             print("Package not found")
             continue
