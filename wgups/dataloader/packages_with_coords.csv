@@ -1,0 +1,41 @@
+Package ID,Address,City,State,Zip,Delivery,Weight KILO,Special Notes,Unnamed: 8,FullAddress,Latitude,Longitude
+1,2496 S West Temple,Salt Lake City,UT,84115,10:30 AM,21,,,"2496 S West Temple, Salt Lake City, UT 84115",40.7335114,-111.893954
+2,2530 S 500 E,Salt Lake City,UT,84106,EOD,44,,,"2530 S 500 E, Salt Lake City, UT 84106",40.7584843,-111.8712176
+3,233 Canyon Rd,Salt Lake City,UT,84103,EOD,2,Can only be on truck 2,,"233 Canyon Rd, Salt Lake City, UT 84103",40.7779956,-111.8850933
+4,380 West 2880 South,Salt Lake City,UT,84115,EOD,4,,,"380 West 2880 South, Salt Lake City, UT 84115",40.7090191,-111.901933
+5,410 S State St,Salt Lake City,UT,84111,EOD,5,,,"410 S State St, Salt Lake City, UT 84111",40.757776,-111.8883356
+6,3060 Lester St,West Valley City,UT,84119,10:30 AM,88,Delayed on flight---will not arrive to depot until 9:05 am,,"3060 Lester St, West Valley City, UT 84119",40.7055425,-111.9363415
+7,1330 2100 S,Salt Lake City,UT,84106,EOD,8,,,"1330 2100 S, Salt Lake City, UT 84106",40.7254375,-111.8438035
+8,300 State St,Salt Lake City,UT,84103,EOD,9,,,"300 State St, Salt Lake City, UT 84103",40.7755449,-111.8877297
+9,300 State St,Salt Lake City,UT,84103,EOD,2,Wrong address listed,,"300 State St, Salt Lake City, UT 84103",40.7755449,-111.8877297
+10,600 E 900 South,Salt Lake City,UT,84105,EOD,1,,,"600 E 900 South, Salt Lake City, UT 84105",40.7497977,-111.856356
+11,2600 South Taylorsville Blvd,Taylorsville,UT,84129,EOD,1,,,"2600 South Taylorsville Blvd, Taylorsville, UT 84129",40.6546192,-111.9554568
+12,3577 Market Street,West Valley City,UT,84119,EOD,1,,,"3577 Market Street, West Valley City, UT 84119",40.6949959,-111.9601336
+13,2010 W 500 S,Salt Lake City,UT,84104,10:30 AM,2,,,"2010 W 500 S, Salt Lake City, UT 84104",40.7449128,-111.9056259
+14,4519 S 1300 East Win Del,Millcreek,UT,84117,10:30 AM,88,"Must be delivered with 15, 19",,"4519 S 1300 East Win Del, Millcreek, UT 84117",40.673656,-111.8535687
+15,4580 S 2300 E,Holladay,UT,84117,9:00 AM,4,,,"4580 S 2300 E, Holladay, UT 84117",40.6691955,-111.8246211
+16,4580 S 2300 E,Holladay,UT,84117,10:30 AM,88,"Must be delivered with 13, 19",,"4580 S 2300 E, Holladay, UT 84117",40.6691955,-111.8246211
+17,3148 1100 W,South Salt Lake,UT,84199,EOD,2,,,"3148 1100 W, South Salt Lake, UT 84199",40.702959,-111.9255117
+18,1488 Murray Taylorsville Rd,Taylorsville,UT,84123,EOD,6,Can only be on truck 2,,"1488 Murray Taylorsville Rd, Taylorsville, UT 84123",40.6642147,-111.9333296
+19,177 Price Ave,South Salt Lake,UT,84190,EOD,37,,,"177 Price Ave, South Salt Lake, UT 84190",40.6919398,-111.8959014
+20,3595 Main St,Salt Lake City,UT,84115,10:30 AM,37,"Must be delivered with 13, 15",,"3595 Main St, Salt Lake City, UT 84115",40.7256398,-111.8910951
+21,3595 Main St,Salt Lake City,UT,84115,EOD,3,,,"3595 Main St, Salt Lake City, UT 84115",40.7256398,-111.8910951
+22,6351 South 900 East,Murray,UT,84121,EOD,2,,,"6351 South 900 East, Murray, UT 84121",40.635342,-111.8658293
+23,5100 South 2700 West,Salt Lake City,UT,84118,EOD,5,,,"5100 South 2700 West, Salt Lake City, UT 84118",40.7275584,-111.9592464
+24,5025 State St,Murray,UT,84107,EOD,7,,,"5025 State St, Murray, UT 84107",40.6623745,-111.8875305
+25,5383 900 East,Murray,UT,84117,84117,10:30 AM,7,Delayed on flight---will not arrive to depot until 9:05 am,"5383 900 East, Murray, UT 84117",40.6540007,-111.8652085
+26,5383 900 East,Murray,UT,84117,EOD,25,,,"5383 900 East, Murray, UT 84117",40.6540007,-111.8652085
+27,1105 Dalton Ave,Salt Lake City,UT,84104,EOD,5,,,"1105 Dalton Ave, Salt Lake City, UT 84104",40.7457467,-111.9225797
+28,2835 Main St,Salt Lake City,UT,84115,EOD,7,Delayed on flight---will not arrive to depot until 9:05 am,,"2835 Main St, Salt Lake City, UT 84115",40.7256398,-111.8910951
+29,1330 2100 S,Salt Lake City,UT,84106,10:30 AM,2,,,"1330 2100 S, Salt Lake City, UT 84106",40.7254375,-111.8438035
+30,300 State St,Salt Lake City,UT,84103,10:30 AM,1,,,"300 State St, Salt Lake City, UT 84103",40.7755449,-111.8877297
+31,3365 900 West,South Salt Lake,UT,84119,10:30 AM,1,,,"3365 900 West, South Salt Lake, UT 84119",40.6986642,-111.9163583
+32,3365 900 West,South Salt Lake,UT,84119,EOD,1,Delayed on flight---will not arrive to depot until 9:05 am,,"3365 900 West, South Salt Lake, UT 84119",40.6986642,-111.9163583
+33,2530 S 500 E,Salt Lake City,UT,84106,EOD,1,,,"2530 S 500 E, Salt Lake City, UT 84106",40.7584843,-111.8712176
+34,4580 S 2300 E,Holladay,UT,84117,10:30 AM,2,,,"4580 S 2300 E, Holladay, UT 84117",40.6691955,-111.8246211
+35,1105 Dalton Ave,Salt Lake City,UT,84104,EOD,88,,,"1105 Dalton Ave, Salt Lake City, UT 84104",40.7457467,-111.9225797
+36,2300 Parkway Blvd,West Valley City,UT,84119,EOD,88,Can only be on truck 2,,"2300 Parkway Blvd, West Valley City, UT 84119",40.712313,-111.954034
+37,410 S State St,Salt Lake City,UT,84111,10:30 AM,2,,,"410 S State St, Salt Lake City, UT 84111",40.757776,-111.8883356
+38,410 S State St,Salt Lake City,UT,84111,EOD,9,Can only be on truck 2,,"410 S State St, Salt Lake City, UT 84111",40.757776,-111.8883356
+39,2010 W 500 S,Salt Lake City,UT,84104,EOD,9,,,"2010 W 500 S, Salt Lake City, UT 84104",40.7449128,-111.9056259
+40,380 West 2880 South,Salt Lake City,UT,84115,10:30 AM,45,,,"380 West 2880 South, Salt Lake City, UT 84115",40.7090191,-111.901933
