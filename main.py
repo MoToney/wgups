@@ -106,23 +106,23 @@ def get_package_status_at_time(package: Package, query_time: datetime) -> str:
     """
     # Check if package is not yet available (has delayed availability)
     if package.available_time and query_time < package.available_time:
-        return f"Package {package.package_id}: Not Available as of {query_time.strftime('%H:%M')}"
+        return f"{str(package)}Delivery Status: Package Not Available as of {query_time.strftime('%H:%M')}"
 
     # Check if package is still at the hub (hasn't departed yet)
-    if package.departure_time is None or query_time < package.departure_time:
-        return f"Package {package.package_id}: At Hub as of {query_time.strftime('%H:%M')}"
+    elif package.departure_time is None or query_time < package.departure_time:
+        return f"{str(package)}Delivery Status: At Hub as of {query_time.strftime('%H:%M')}"
 
     # Check if package is en route (departed but not yet delivered)
     elif package.departure_time <= query_time < package.delivery_time:
-        return f"Package {package.package_id}: En Route on {package.get_truck()} as of {query_time.strftime('%H:%M')}"
+        return f"{str(package)}Delivery Status: En Route on {package.get_truck()} as of {query_time.strftime('%H:%M')}"
 
     # Check if package has been delivered
     elif package.delivery_time is not None and query_time >= package.delivery_time:
-        return f"Package {package.package_id}: Delivered by {package.get_truck()} at {package.delivery_time.strftime('%H:%M')}"
+        return f"{str(package)}Delivery Status: Delivered by {package.get_truck()} at {package.delivery_time.strftime('%H:%M')}"
 
     # Fallback case for unexpected states
     else:
-        return f"Package {package.package_id}: Status Unknown as of {query_time.strftime('%H:%M')}"
+        return f"{str(package)}| Delivery Status: Unknown as of {query_time.strftime('%H:%M')}"
 
 def get_all_truck_distances_at_time(query_time: datetime) -> None:
     truck1_distance = get_truck_distance_at_time(truck1, query_time)

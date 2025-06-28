@@ -21,6 +21,18 @@ class PackageStatus(Enum):
     IN_ROUTE = 2
     DELIVERED = 3
 
+    def __str__(self):
+        if self.NOT_READY:
+            return "Not Available"
+        elif self.AT_HUB:
+            return "At Hub"
+        elif self.IN_ROUTE:
+            return "In Route"
+        elif self.DELIVERED:
+            return "Delivered"
+        else:
+            return "Unknown Status"
+
 class TruckCarrier(Enum):
     """
     returns the truck that is associated with the object
@@ -29,6 +41,18 @@ class TruckCarrier(Enum):
     TRUCK_1 = 1
     TRUCK_2 = 2
     TRUCK_3 = 3
+
+    def __str__(self):
+        if self.TRUCK_1:
+            return 'Truck 1'
+        elif self.TRUCK_2:
+            return 'Truck 2'
+        elif self.TRUCK_3:
+            return 'Truck 3'
+        elif self.NONE:
+            return 'No Truck Assigned'
+        else:
+            return 'None'
 
 class Package:
     """
@@ -120,16 +144,7 @@ class Package:
         :return: str
         :attribute: truck_carrier: TruckCarrier.TRUCK_1, TruckCarrier.TRUCK_2, TruckCarrier.TRUCK_3, or TruckCarrier.NONE
         """
-        if self.truck_carrier == TruckCarrier.TRUCK_1:
-            return "Truck 1"
-        elif self.truck_carrier == TruckCarrier.TRUCK_2:
-            return "Truck 2"
-        elif self.truck_carrier == TruckCarrier.TRUCK_3:
-            return "Truck 3"
-        elif self.truck_carrier == TruckCarrier.NONE:
-            return "No Truck"
-        else:
-            return "Error"
+        return self.truck_carrier
 
     def set_delivery_time(self, delivery_time: datetime) -> None:
         """
@@ -182,13 +197,11 @@ class Package:
         self.packages_at_same_address = other_packages
 
     def __str__(self):
-        return (f"Package {self.package_id}: | "
+        return (f"Package {self.package_id} | "
                 f"Address: {self.address}, {self.city}, {self.state}, {self.zip_code} | "
-                f"Deadline: {self.deadline.strftime('%I:%M %p') if self.deadline else 'EOD'} | "
+                f"Deadline: {self.deadline.strftime('%I:%M %p') if self.deadline else 'N/A'} | "
                 f"Weight: {self.weight} | "
-                f"Status: {self.status.name.replace('_', ' ').title()} | "
-                f"Delivery Time: {self.delivery_time} | "
-                f"Note: {self.note}")
+                f"Note: {self.note if self.note else 'N/A'} | ")
 
 
 
