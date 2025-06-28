@@ -1,3 +1,4 @@
+import pandas as pd
 import re
 from collections import defaultdict
 
@@ -5,6 +6,7 @@ from wgups.datastore.PackageHashMap import PackageHashMap
 from wgups.Package import Package, PackageStatus
 from datetime import datetime
 from typing import Optional
+
 
 
 class PackageLoader:
@@ -22,7 +24,7 @@ class PackageLoader:
         self.file = file
         self.package_hash_map = package_hash_map # the hash map of the packages
 
-        self.address_groups = []
+        self.address_groups = defaultdict(list)
 
         self.load_from_file() # loads the packages from the csv file
         self.build_groups() # builds the groups of packages
@@ -33,34 +35,31 @@ class PackageLoader:
         """
         Loads the packages from the csv file.
         """
-        import csv
-        with open(self.file, 'r') as csvfile:
-            reader = csv.reader(csvfile, delimiter=',')
-            next(reader)
-            for row in reader:
-                if row:
-                    self.package_hash_map.add_package(self.csv_to_package(row=row)) # adds the package to the hash map
-            return self.package_hash_map
+        df = pd.read_csv(self.file)
+        df = df.dropna(subset=['Package ID'])
+        for _, row in df.iterrows():
+            self.package_hash_map.add_package(self.csv_to_package(row))
+        return self.package_hash_map
 
-    def csv_to_package(self, row: list[str]) -> Package:
-        """
-        Converts a row from the csv file to a package.
-        """
-        package_id = int(row[0])
-        address = row[1]
-        city = row[2]
-        state = row[3]
-        zip_code = row[4]
-        deadline = self.parse_deadline(row[5]) # parses the deadline from the csv file and returns a datetime object
-        weight = float(row[6]) 
-        required_truck, available_time, grouped_packages, wrong_address = self.parse_note(row[7])
-        status = PackageStatus.NOT_READY # sets the status of the package to not ready
+    def csv_to_package(self, row: pd.Series) -> Package:
+        package_id = int(row['Package ID'])
+        address = row['Address']
+        city = row['City']
+        state = row['State']
+        zip_code = row['Zip']
+        lat = float(row['Latitude']) if row['Latitude'] else None
+        lon = float(row['Longitude']) if row['Longitude'] else None
+        deadline = self.parse_deadline(row['Deadline'])
+        weight = float(row['Weight KILO']) if row['Weight KILO'] else 0
+        required_truck, available_time, grouped_packages, wrong_address = self.parse_note(
+            str(row.get('Special Notes', "")))
+        status = PackageStatus.NOT_READY
 
         package = Package(
-            package_id=package_id, address=address, city=city, state=state, zip_code=zip_code,
-            deadline=deadline, weight=weight, note=row[7], status=status) # creates a package object
+            package_id=package_id, address=address, city=city, state=state, zip_code=zip_code, lat=lat, lon=lon,
+            deadline=deadline, weight=weight, note=str(row.get('Special Notes', "")), status=status) # creates a package object
 
-        self.add_address_group(address, package_id) # adds the package id to the address dictionary
+        self.address_groups[address].append(package_id) # adds the package id to the address dictionary
 
         # Set parsed note attributes
         if grouped_packages is not None:
@@ -165,20 +164,6 @@ class PackageLoader:
                 package = self.package_hash_map[member_id]
                 package.must_be_delivered_with = group
 
-    def add_address_group(self, address, package_id):
-        for pair in self.address_groups:
-            if pair[0] == address:
-                pair[1].append(package_id)
-                return
-            # If address not found, add new
-        self.address_groups.append([address, [package_id]])
-
-    def get_package_ids_for_address(self, address):
-        for pair in self.address_groups:
-            if pair[0] == address:
-                return pair[1]
-        return []
-
     def build_shared_addresses(self):
         """
         Builds the shared addresses of packages.
@@ -197,15 +182,18 @@ class PackageLoader:
                 continue
 
             # if the package has packages at the same address
-            package_ids = self.get_package_ids_for_address(package.address)
-            if len(package_ids) == 1:
-                visited.add(package.address)
-                package.set_packages_at_same_address(None)
-                continue
-
-            if len(package_ids) > 1:
-                package.set_packages_at_same_address(package_ids)
-                for pid in package_ids:
-                    other_package = self.package_hash_map.search_package(pid)
-                    other_package.set_packages_at_same_address(package_ids)
-                visited.add(package.address)
+            if package.address in self.address_groups.keys():
+                # if the package has only one package at the same address, set the packages at same address to None
+                if len(self.address_groups[package.address]) == 1:
+                    visited.add(package.address) # add the package address to the visited set
+                    package.set_packages_at_same_address(None)
+                    continue
+                # if the package has multiple packages at the same address, set the packages at same address to the list of packages at the same address
+                if len(self.address_groups[package.address]) > 1:
+                    #print(f"{package} shares address with {self.address_groups[package.address]}multiple addresses")
+                    package.set_packages_at_same_address(self.address_groups[package.address])
+                    # for each package at the same address, set the packages at same address to the list of packages at the same address
+                    for pid in self.address_groups[package.address]:
+                        other_package = self.package_hash_map.search_package(pid)
+                        other_package.set_packages_at_same_address(self.address_groups[other_package.address]) # set the packages at same address to the list of packages at the same address
+                    visited.add(package.address)

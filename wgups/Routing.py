@@ -43,16 +43,16 @@ class Routing:
         distance = self.distance_map.get_distance(current_stop, next_stop) # gets the distance between the two stops
         return timedelta(hours=distance / 18.0) # returns the travel time between the two stops
 
-    def get_estimated_delivery_time(self, current_time:datetime, current_location: str, address_w_zip: str) -> datetime:
+    def get_estimated_delivery_time(self, current_time:datetime, current_location: str, address: str) -> datetime:
         """
         Returns the estimated delivery time of a package
 
         :param current_time: The current time of the simulation
         :param current_location: The current location of the truck
-        :param address_w_zip: The address of the package
+        :param address: The address of the package
         :return: The estimated delivery time of the package
         """
-        return current_time + self.get_travel_time(current_location, address_w_zip) # returns the elapsed time between the current time and the estimated delivery time
+        return current_time + self.get_travel_time(current_location, address) # returns the elapsed time between the current time and the estimated delivery time
 
     def update_address(self, package_id: int) -> None:
         """
@@ -62,8 +62,8 @@ class Routing:
         :return: None
         """
         package = self.packages[package_id] # gets the package from the hash map
-        package.set_full_address("410 S. State St.", "Salt Lake City", "Utah", "84111") # sets the full address of the package (address, city, state, zip code)
-        package.set_address_w_zip("410 S State St(84111)") # sets the address with zip code of the package for use in the distance map
+        package.set_full_address("410 S State St.", "Salt Lake City", "UT", "84111") # sets the full address of the package (address, city, state, zip code)
+        package.set_address("410 S State St") # sets the address with zip code of the package for use in the distance map
         package.wrong_address = False # sets the wrong address flag to False
 
     def get_priority_queue(self, current_time:datetime, dispatched_packages: set, truck_id: int) -> (list[tuple[int, Any]], list[Package]):
@@ -189,7 +189,7 @@ class Routing:
                     pkg = self.packages[pid]
                     # if the package has a deadline, add it to the list of packages with a deadline
                     if pkg.deadline:
-                        grouped_packages_w_deadline.append((pkg.deadline, pkg.package_id, pkg.address_w_zip))
+                        grouped_packages_w_deadline.append((pkg.deadline, pkg.package_id, pkg.address))
                 group_deliverable = True # initializes the group deliverable flag
                 local_time = mock_time # initializes the local time of the truck
                 local_location = current_location # initializes the local location of the truck
@@ -223,7 +223,7 @@ class Routing:
             if prio == 3:
                 pkg = self.packages[package_id] # gets the package from the hash map
                 if self.get_estimated_delivery_time(mock_time, current_location,
-                                                      pkg.address_w_zip) <= pkg.deadline:
+                                                      pkg.address) <= pkg.deadline:
                     p3_packages.append(self.packages[package_id]) # add the package to the list of packages with a deadline
 
             # if the package is not grouped with other packages, required for this truck, and has no deadline
@@ -240,10 +240,10 @@ class Routing:
             sorted_batch = self.sort_nearest_neighbors(batch, current_location) # sort the packages by the nearest neighbor
             for pkg in sorted_batch:
                 if pkg.package_id not in primary and len(primary) < self.MAX_SIZE:
-                    eta = self.get_estimated_delivery_time(mock_time, current_location, pkg.address_w_zip)
+                    eta = self.get_estimated_delivery_time(mock_time, current_location, pkg.address)
                     if eta <= pkg.deadline:
                         primary.append(pkg.package_id)
-                        current_location = pkg.address_w_zip
+                        current_location = pkg.address
                         mock_time = eta
                         primary = self.add_siblings_to_primary(pkg, primary, packages_in_pq)
 
@@ -333,19 +333,19 @@ class Routing:
             # if the deadline has only one package listed under it
             if len(group) == 1:
                 package = group[0] # get the package from the group
-                arrival_time = self.get_estimated_delivery_time(current_time, current_location, package.address_w_zip)
+                arrival_time = self.get_estimated_delivery_time(current_time, current_location, package.address)
                 slack_time = min(slack_time, (package.deadline - arrival_time)) # update the slack time
                 base_route.append(package) # add the package to the base route
-                current_location = package.address_w_zip
+                current_location = package.address
                 current_time = arrival_time
             else:
                 # Sort packages by nearest neighbor and deliver them
                 sorted_group = self.sort_nearest_neighbors(group, current_location) # sort the group by the nearest neighbor
                 for package in sorted_group:
-                    arrival_time = self.get_estimated_delivery_time(current_time, current_location, package.address_w_zip) # get the estimated delivery time of the package
+                    arrival_time = self.get_estimated_delivery_time(current_time, current_location, package.address) # get the estimated delivery time of the package
                     slack_time = min(slack_time, (package.deadline - arrival_time)) # update the slack time
                     base_route.append(package) # add the package to the base route
-                    current_location = package.address_w_zip
+                    current_location = package.address
                     current_time = arrival_time
 
         return base_route, slack_time
@@ -371,12 +371,12 @@ class Routing:
                 # Calculate travel time from previous stop to package (only once per package)
                 if time_prev_stop_to_package is None:
                     if isinstance(starting_point, str):
-                        time_prev_stop_to_package = self.get_travel_time("HUB", package.address_w_zip)
+                        time_prev_stop_to_package = self.get_travel_time("HUB", package.address)
                     elif isinstance(starting_point, Package):
-                        time_prev_stop_to_package = self.get_travel_time(previous_stop.address_w_zip, package.address_w_zip)
+                        time_prev_stop_to_package = self.get_travel_time(previous_stop.address, package.address)
 
                 # Calculate travel time from package to next stop
-                time_package_to_next_stop = self.get_travel_time(package.address_w_zip, stop.address_w_zip)
+                time_package_to_next_stop = self.get_travel_time(package.address, stop.address)
                 # Total additional time if package is inserted here
                 time_added = time_prev_stop_to_package + time_package_to_next_stop
 
@@ -386,7 +386,7 @@ class Routing:
                     should_insert = True
                     if isinstance(previous_stop, Package):
                         # Compare with original direct route time
-                        original_time = self.get_travel_time(previous_stop.address_w_zip, stop.address_w_zip)
+                        original_time = self.get_travel_time(previous_stop.address, stop.address)
                         should_insert = time_added < original_time
 
                     if should_insert:
@@ -474,7 +474,7 @@ class Routing:
             if isinstance(current_stop, str):
                 next_package = self.get_nearest_neighbor(packages_not_in_route, current_stop)
             elif isinstance(current_stop, Package):
-                next_package = self.get_nearest_neighbor(packages_not_in_route, current_stop.address_w_zip)
+                next_package = self.get_nearest_neighbor(packages_not_in_route, current_stop.address)
             else:
                 break
 
@@ -496,7 +496,7 @@ class Routing:
 
         for stop in route:
             if isinstance(stop, Package):
-                stop_address = stop.address_w_zip
+                stop_address = stop.address
             elif isinstance(stop, str):
                 stop_address = stop
             else:
@@ -527,7 +527,7 @@ class Routing:
         if not packages:
             return None
 
-        nearest_neighbor = min(packages, key=lambda pkg: self.distance_map.get_distance(current_location, pkg.address_w_zip))
+        nearest_neighbor = min(packages, key=lambda pkg: self.distance_map.get_distance(current_location, pkg.address))
         return nearest_neighbor
 
     def sort_nearest_neighbors(self, pkgs: list[Package], start_location: str) -> list[Package]:
@@ -543,9 +543,9 @@ class Routing:
         to_visit = set(pkgs)
 
         while to_visit:
-            nearest = min(to_visit, key=lambda pkg: self.get_travel_time(current, pkg.address_w_zip))
+            nearest = min(to_visit, key=lambda pkg: self.get_travel_time(current, pkg.address))
             route.append(nearest)
-            current = nearest.address_w_zip
+            current = nearest.address
             to_visit.remove(nearest)
         return route
 

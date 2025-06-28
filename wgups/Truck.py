@@ -163,7 +163,7 @@ class Truck:
         print_list = [str(package) for package in self.packages_in_truck]
         print(print_list)
 
-'''packies = PackageLoader("../data/packages.csv",
+'''packies = PackageLoader("../data/ps.csv",
                                         PackageHashMap(61, 1, 1, .75)).get_map()
 clock = SimulationClock(datetime(1900,1,1,8,0))
 disties = DistanceMap("../data/distances.csv")

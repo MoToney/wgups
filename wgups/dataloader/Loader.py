@@ -3,7 +3,7 @@ from geopy.geocoders import Nominatim
 from time import sleep
 
 # Load your CSV data
-df = pd.read_csv("../../data/packages.csv")
+df = pd.read_csv("../../data/ps.csv")
 
 # Build full address strings
 df["FullAddress"] = df["Address"] + ", " + df["City"] + ", " + df["State"] + " " + df["Zip"].astype(str)
