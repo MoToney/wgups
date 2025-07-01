@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import  Optional
 
-from wgups.Package import Package
+from wgups.Package import Package, PackageStatus
 from wgups.Routing import Routing
 from wgups.SimulationClock import SimulationClock
 from wgups.Truck import Truck
@@ -104,6 +104,9 @@ def get_package_status_at_time(package: Package, query_time: datetime) -> str:
     :param query_time: The time to check status at
     :return: A string describing the package status at the specified time
     """
+    if package.wrong_address and query_time < datetime(1900, 1, 1, 10, 20):
+        return f"{str(Package(9, "300 State St", "Salt Lake City","84103","UT",
+                              None,2.0,"Wrong address listed", PackageStatus.NOT_READY))}"f"Delivery Status: Package At Hub, the address is incorrect as of {query_time.strftime('%H:%M')}"
     # Check if package is not yet available (has delayed availability)
     if package.available_time and query_time < package.available_time:
         return f"{str(package)}Delivery Status: Package Not Available as of {query_time.strftime('%H:%M')}"
@@ -182,9 +185,9 @@ def display_total_mileage() -> None:
     print(f"Truck 2 Mileage: {truck2.distance_travelled:.2f}")
     print(f"Truck 3 Mileage: {truck3.distance_travelled:.2f}")
 
-# Display initial status and statistics
+"""# Display initial status and statistics
 get_all_packages_at_time(datetime(1900,1,1,17,0))
-print(f"\nTotal mileage: {miles1 + miles2 + miles3 + miles4:.2f}")
+print(f"\nTotal mileage: {miles1 + miles2 + miles3 + miles4:.2f}")"""
 
 
 # Ma\in menu loop

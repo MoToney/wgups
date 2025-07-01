@@ -64,7 +64,6 @@ class Routing:
         package = self.packages[package_id] # gets the package from the hash map
         package.set_full_address("410 S. State St.", "Salt Lake City", "Utah", "84111") # sets the full address of the package (address, city, state, zip code)
         package.set_address_w_zip("410 S State St(84111)") # sets the address with zip code of the package for use in the distance map
-        package.wrong_address = False # sets the wrong address flag to False
 
     def get_priority_queue(self, current_time:datetime, dispatched_packages: set, truck_id: int) -> (list[tuple[int, Any]], list[Package]):
         """
@@ -97,7 +96,7 @@ class Routing:
             if package.available_time is not None and package.available_time > current_time:
                 continue
             # if the package has the wrong address, and the update address time has not been reached, the package is not eligible for delivery
-            if package.wrong_address:
+            if package.wrong_address and datetime(1900,1,1,10,20) > current_time:
                 continue
             # if the package is required for another truck, it is not eligible for delivery on this truck
             if package.required_truck and package.required_truck != truck_id:
