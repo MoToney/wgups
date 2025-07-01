@@ -52,11 +52,11 @@ class Truck:
             package.set_status(PackageStatus.IN_ROUTE)
             # Assign package to specific truck (affects delivery tracking)
             if self.truck_id == 1:
-                package.set_truck(TruckCarrier.TRUCK_1)
+                package.truck_carrier = TruckCarrier.TRUCK_1
             elif self.truck_id == 2:
-                package.set_truck(TruckCarrier.TRUCK_2)
+                package.truck_carrier = TruckCarrier.TRUCK_2
             elif self.truck_id == 3:
-                package.set_truck(TruckCarrier.TRUCK_3)
+                package.truck_carrier = TruckCarrier.TRUCK_3
             else:
                 print("Invalid Truck ID")
                 break

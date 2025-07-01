@@ -43,13 +43,13 @@ class TruckCarrier(Enum):
     TRUCK_3 = 3
 
     def __str__(self):
-        if self.TRUCK_1:
+        if self is TruckCarrier.TRUCK_1:
             return 'Truck 1'
-        elif self.TRUCK_2:
+        elif self is TruckCarrier.TRUCK_2:
             return 'Truck 2'
-        elif self.TRUCK_3:
+        elif self is TruckCarrier.TRUCK_3:
             return 'Truck 3'
-        elif self.NONE:
+        elif self is TruckCarrier.NONE:
             return 'No Truck Assigned'
         else:
             return 'None'
@@ -137,11 +137,11 @@ class Package:
     def set_truck(self, truck: TruckCarrier) -> None:
         self.truck_carrier = truck
 
-    def get_truck(self) -> str:
+    def get_truck(self) -> TruckCarrier:
         """
         Returns string of the truck carrier of the package
 
-        :return: str
+        :return: TruckCarrier
         :attribute: truck_carrier: TruckCarrier.TRUCK_1, TruckCarrier.TRUCK_2, TruckCarrier.TRUCK_3, or TruckCarrier.NONE
         """
         return self.truck_carrier
