@@ -1,12 +1,3 @@
-'''
-a.	Has a status to see if delivered, in route, or at hub
-b.	Has a specific truck
-c.	Has a specific time ready
-d.	40 packages in total
-e.	Gets loaded into the truck
-f.	Gets loaded into the data structure containing all packages
-
-'''
 
 from enum import Enum
 from datetime import datetime
@@ -69,8 +60,7 @@ class Package:
         deadline (datetime): The time the package must be delivered by
         weight (float): The weight of the package
         note (dict): The note of the package, denoting special handling guidelines
-        status (PackageStatus): The status of the package, which is a phase in the PackageStatus Enum
-        address_w_zip (str): The address of the package with the zip code
+        status (PackageStatus): The status of the package, which is a phase in the PackageStatus Enun
         must_be_delivered_with (list[int] or None): The ids of packages that must be delivered at the same time as the package
         available_time (datetime or None): The time the package is available to be delivered
         required_truck (int or None): The truck that is required to deliver the package
@@ -99,90 +89,6 @@ class Package:
     delivery_time: Optional[datetime] = None
     departure_time: Optional[datetime] = None
     truck_carrier: TruckCarrier = TruckCarrier.NONE
-
-    def __post_init__(self):
-        self.address_w_zip = self.address # this is for standardization with the addresses in distances.csv
-
-    def set_address(self, address: str) -> None:
-        self.address = address
-    def get_address(self) -> str:
-        return self.address
-    def set_city(self, city: str) -> None:
-        self.city = city
-    def get_city(self) -> str:
-        return self.city
-    def set_state(self, state: str) -> None:
-        self.state = state
-    def get_state(self) -> str:
-        return self.state
-    def set_zip_code(self, zip_code: str) -> None:
-        self.zip_code = zip_code
-    def get_zip_code(self) -> str:
-        return self.zip_code
-    def set_lat(self, lat: float) -> None:
-        self.lat = lat
-    def get_lat(self) -> float:
-        return self.lat
-    def set_lon(self, lon: float) -> None:
-        self.lon = lon
-    def get_lon(self) -> float:
-        return self.lon
-    def set_deadline(self, deadline: datetime) -> None:
-        self.deadline = deadline
-    def get_deadline(self) -> datetime:
-        return self.deadline
-    def set_weight(self, weight: float) -> None:
-        self.weight = weight
-    def get_weight(self) -> float:
-        return self.weight
-    def set_note(self, note: str) -> None:
-        self.note = note
-    def get_note(self) -> str:
-        return self.note
-    def set_status(self, status: PackageStatus):
-        self.status = status
-    def get_status(self) -> PackageStatus:
-        return self.status
-    def set_truck(self, truck: TruckCarrier) -> None:
-        self.truck_carrier = truck
-    def get_truck(self) -> str:
-        """
-        Returns string of the truck carrier of the package
-
-        :return: str
-        :attribute: truck_carrier: TruckCarrier.TRUCK_1, TruckCarrier.TRUCK_2, TruckCarrier.TRUCK_3, or TruckCarrier.NONE
-        """
-        return self.truck_carrier
-    def set_delivery_time(self, delivery_time: datetime) -> None:
-        """
-        Sets the delivery time of the package
-
-        :param delivery_time: the time the package was delivered
-        :type delivery_time: datetime
-
-        """
-        self.delivery_time = delivery_time
-    def get_delivery_time(self) -> datetime:
-        return self.delivery_time
-    def set_departure_time(self, departure_time: datetime) -> None:
-        """
-        Sets the departure time of the package
-        """
-        self.departure_time = departure_time
-    def get_departure_time(self) -> datetime:
-        return self.departure_time
-    def get_address_w_zip(self) -> str:
-        """
-        Returns address that is usable when referencing the listed address for the Package in DistanceMap
-        """
-        address_w_zip = (f"{self.address}({self.zip_code})")
-        return address_w_zip
-
-    def set_address_w_zip(self, address_w_zip: str) -> None:
-        """
-        Sets the address with zip code of the package
-        """
-        self.address_w_zip = address_w_zip
 
     def set_full_address(self, address: str, city: str, state: str, zip_code: str) -> None:
         """

@@ -114,11 +114,11 @@ def get_package_status_at_time(package: Package, query_time: datetime) -> str:
 
     # Check if package is en route (departed but not yet delivered)
     elif package.departure_time <= query_time < package.delivery_time:
-        return f"{str(package)}Delivery Status: En Route on {package.get_truck()} as of {query_time.strftime('%H:%M')}"
+        return f"{str(package)}Delivery Status: En Route on {package.truck_carrier} as of {query_time.strftime('%H:%M')}"
 
     # Check if package has been delivered
     elif package.delivery_time is not None and query_time >= package.delivery_time:
-        return f"{str(package)}Delivery Status: Delivered by {package.get_truck()} at {package.delivery_time.strftime('%H:%M')}"
+        return f"{str(package)}Delivery Status: Delivered by {package.truck_carrier} at {package.delivery_time.strftime('%H:%M')}"
 
     # Fallback case for unexpected states
     else:

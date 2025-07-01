@@ -1,5 +1,8 @@
+import heapq
+from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Any
+from itertools import count
+from typing import Any, Optional
 
 from wgups.Package import Package
 
@@ -62,8 +65,9 @@ class Routing:
         :return: None
         """
         package = self.packages[package_id] # gets the package from the hash map
-        package.set_full_address("410 S State St.", "Salt Lake City", "UT", "84111") # sets the full address of the package (address, city, state, zip code)
-        package.set_address("410 S State St") # sets the address with zip code of the package for use in the distance map
+        package.set_full_address("410 S State St", "Salt Lake City", "UT", "84111") # sets the full address of the package (address, city, state, zip code)
+        package.lat = 40.757776
+        package.lon = -111.8883356
         package.wrong_address = False # sets the wrong address flag to False
 
     def get_priority_queue(self, current_time:datetime, dispatched_packages: set, truck_id: int) -> (list[tuple[int, Any]], list[Package]):
@@ -120,12 +124,12 @@ class Routing:
                     grouped.add(groupmate.package_id)
                     group.append(groupmate.package_id)
                     packages_in_pq.append(groupmate)
-                priority_queue.append((priority, group)) # add the grouped packages to the priority queue with the priority established above
+                heapq.heappush(priority_queue, (priority, group))# add the grouped packages to the priority queue with the priority established above
                 continue
 
             # if the package is required for this truck, the priority is 1
             if package.required_truck == truck_id:
-                priority_queue.append((1, package.package_id)) # add the package to the priority queue with the priority of 1
+                heapq.heappush(priority_queue, (1, package.package_id)) # add the package to the priority queue with the priority of 1
                 packages_in_pq.append(package)
                 continue
 
@@ -134,15 +138,14 @@ class Routing:
             add the package to the list of packages sorted by which package has the earliest deadline
             """
             if package.deadline and not package.must_be_delivered_with:
-                priority_queue.append((3, package.package_id))
+                heapq.heappush(priority_queue, (3, package.package_id))
                 packages_in_pq.append(package)
                 continue
 
             # if the package has no deadline, not required for by any truck, and is not grouped with other packages, the priority is 5
-            priority_queue.append((5, package.package_id))
+            heapq.heappush(priority_queue, (5, package.package_id))
             packages_in_pq.append(package)
 
-        priority_queue.sort(key=lambda x: x[0], reverse=True) # sort in ascending order so more prioritized packages are first
         return priority_queue, packages_in_pq
 
     def select_packages_by_priority(self, priority_queue: list[tuple[int, Any]], packages_in_pq: list[Package], current_time:datetime) -> list[int]:
@@ -259,10 +262,10 @@ class Routing:
 
         return primary
 
-    def get_eligible_siblings(self, package: Package, primary: list[int], packages_in_pq: list[Package]) -> list[int]:
+    def get_eligible_siblings(self, package: Package, primary: set[int], packages_in_pq: list[Package]) -> list[int]:
         """
         Gets eligible sibling packages that can be added to the delivery list
-        
+
         :param package: The package to find siblings for
         :param primary: The current list of packages to be delivered
         :param packages_in_pq: The packages that are in the priority queue
@@ -286,7 +289,7 @@ class Routing:
     def add_siblings_to_primary(self, package: Package, primary: list[int], packages_in_pq: list[Package]) -> list[int]:
         """
         Adds eligible sibling packages to the primary delivery list
-        
+
         :param package: The package to find siblings for
         :param primary: The current list of packages to be delivered
         :param packages_in_pq: The packages in the priority queue
@@ -299,7 +302,7 @@ class Routing:
         return mock_primary
 
     def sort_packages_by_deadline(self, prioritized_packages: list[int]) -> tuple[list[tuple[datetime, list[Package]]], list[Package]]:
-        deadline_groups = []
+        deadline_groups = defaultdict(list)
         regulars = [] # initializes the list of packages with no deadline
 
         # iterate through the prioritized packages
@@ -307,28 +310,19 @@ class Routing:
             pkg = self.packages[pid]
             # if the package has a deadline, add it to the dictionary of packages by deadline
             if pkg.deadline:
-                found = False
-                for group in deadline_groups:
-                    # if the deadline is already in the list of deadline groups
-                    if group[0] == pkg.deadline:
-                        group[1].append(pkg) #add the pkg to the list of packages that share that deadline
-                        found = True
-                        break
-                if not found:
-                    deadline_groups.append([pkg.deadline, [pkg]])
+                deadline_groups[pkg.deadline].append(pkg)
             else:
                 regulars.append(pkg) # add the package to the list of packages with no deadline
 
         return deadline_groups, regulars
 
-    def build_prioritized_route(self, deadline_groups: list[tuple[datetime, list[Package]]], current_time: datetime, current_location: str) -> tuple[list[Package], timedelta]:
+    def build_prioritized_route(self, deadline_groups: defaultdict[list], current_time: datetime, current_location: str) -> tuple[list[Package], timedelta]:
         base_route = [] # initializes the list of packages to be delivered
         slack_time = timedelta(hours=24) # initializes the slack time, this is the time that the truck can be late by
 
-        deadline_groups.sort(key=lambda x: x[0])
-
         # iterate through the deadlines
-        for deadline, group in deadline_groups:
+        for deadline in sorted(deadline_groups.keys()):
+            group = deadline_groups[deadline]
 
             # if the deadline has only one package listed under it
             if len(group) == 1:
@@ -353,7 +347,7 @@ class Routing:
     def find_all_feasible_insertions(self, starting_point: str | Package, base_route: list[Package], unprioritized_packages: list[Package], slack_time: timedelta) -> list[tuple[float, int, Any, Any, Package]]:
         """
         Finds all feasible insertion points for packages in the route
-        
+
         :param starting_point: The starting point (HUB or Package)
         :param base_route: The base route to insert packages into
         :param unprioritized_packages: Packages to consider for insertion
@@ -361,13 +355,14 @@ class Routing:
         :return: List of feasible insertions as (time_added, counter, prev_stop, next_stop, package)
         """
         choices = []
+        counter = count()
 
         for package in unprioritized_packages:
             previous_stop = starting_point
             time_prev_stop_to_package = None
 
             # Check each possible insertion point in the route
-            for i, stop in enumerate(base_route):
+            for stop in base_route:
                 # Calculate travel time from previous stop to package (only once per package)
                 if time_prev_stop_to_package is None:
                     if isinstance(starting_point, str):
@@ -390,18 +385,18 @@ class Routing:
                         should_insert = time_added < original_time
 
                     if should_insert:
-                        choices.append((time_added, stop.package_id, previous_stop, stop, package))
+                        heapq.heappush(choices, (time_added, next(counter), previous_stop, stop, package))
 
                 # Update for next iteration
                 time_prev_stop_to_package = time_package_to_next_stop
                 previous_stop = stop
-        choices.sort(key=lambda x: x[0], reverse=True)
+
         return choices
 
     def insert_best_feasible_packages(self, base_route: list[Package], insertion_heap: list[tuple[float, int, Any, Any, Package]], remaining_packages: list[Package], slack_time: timedelta) -> tuple[list[Package], timedelta, list[Package]]:
         """
         Inserts the best feasible packages into the route
-        
+
         :param base_route: The base route to insert packages into
         :param insertion_heap: Heap of feasible insertions
         :param remaining_packages: Packages not yet inserted
@@ -411,7 +406,7 @@ class Routing:
         inserted_packages = set()
 
         while insertion_heap and slack_time > timedelta(0):  # add packages in their optimal position until the slack_time is exhausted
-            travel_time, counter, prev_stop, next_stop, package = insertion_heap.pop()
+            travel_time, _, prev_stop, next_stop, package = heapq.heappop(insertion_heap)
 
             if travel_time > slack_time:
                 break
@@ -426,7 +421,8 @@ class Routing:
 
             base_route.insert(insert_idx, package)
             slack_time -= travel_time
-            remaining_packages.remove(package)
+            if package in remaining_packages:
+                remaining_packages.remove(package)
             inserted_packages.add(package)
 
             # Check for new feasible insertions after this insertion
@@ -437,15 +433,14 @@ class Routing:
 
                 for insertion in new_inserts:
                     if insertion[4] not in inserted_packages:  # package not already inserted
-                        insertion_heap.append(insertion)
-                insertion_heap.sort(key=lambda x: x[0], reverse=True)
+                        heapq.heappush(insertion_heap, insertion)
 
         return base_route, slack_time, remaining_packages
 
     def _find_insertion_index(self, base_route: list[Package], prev_stop: str | Package, next_stop: Package) -> int | None:
         """
         Finds the insertion index for a package between prev_stop and next_stop
-        
+
         :param base_route: The base route
         :param prev_stop: The previous stop
         :param next_stop: The next stop
@@ -463,19 +458,26 @@ class Routing:
 
     def build_regular_route(self, route: list[Package], packages_not_in_route: list[Package], current_stop: str | Package) -> list[Package]:
         """
-        Builds a regular route using nearest neighbor algorithm
-        
-        :param route: The route to build
-        :param packages_not_in_route: Packages not yet in the route
-        :param current_stop: Current location
-        :return: Completed route
+        Builds a route by always selecting the nearest package to the current stop.
+
+        :param route: The existing route (will be extended)
+        :param packages_not_in_route: Packages not yet in the route (will be depleted)
+        :param current_stop: Starting location ('HUB' or a Package)
+        :return: The completed route (with all packages added)
         """
         while packages_not_in_route:
+            # Figure out the current address
             if isinstance(current_stop, str):
-                next_package = self.get_nearest_neighbor(packages_not_in_route, current_stop)
+                curr_address = current_stop
             elif isinstance(current_stop, Package):
-                next_package = self.get_nearest_neighbor(packages_not_in_route, current_stop.address)
+                curr_address = current_stop.address
             else:
+                raise TypeError(f"current_stop must be str or Package, not {type(current_stop)}")
+
+            # Select nearest neighbor from remaining packages
+            next_package = self.get_nearest_neighbor(packages_not_in_route, curr_address)
+            if next_package is None:
+                # Defensive: if no reachable package, break
                 break
 
             route.append(next_package)
@@ -516,7 +518,7 @@ class Routing:
 
         return current_time, distance_travelled
 
-    def get_nearest_neighbor(self, packages: list[Package], current_location: str) -> Package | None:
+    def get_nearest_neighbor(self, packages: list[Package], current_location: str) -> Optional[Package]:
         """
         Finds the nearest neighbor package from current location
         
@@ -524,11 +526,11 @@ class Routing:
         :param current_location: Current location
         :return: Nearest package or None if no packages
         """
-        if not packages:
+        candidates = [pkg for pkg in packages if
+                      self.distance_map.get_distance(current_location, pkg.address) < float('inf')]
+        if not candidates:
             return None
-
-        nearest_neighbor = min(packages, key=lambda pkg: self.distance_map.get_distance(current_location, pkg.address))
-        return nearest_neighbor
+        return min(candidates, key=lambda pkg: self.distance_map.get_distance(current_location, pkg.address))
 
     def sort_nearest_neighbors(self, pkgs: list[Package], start_location: str) -> list[Package]:
         """
@@ -558,25 +560,34 @@ class Routing:
         if deadline_groups:
             prioritized_route, slack_time = self.build_prioritized_route(deadline_groups, current_time,
                                                                          current_location)
+            # Prepare siblings to insert after iteration (avoid in-place mutation)
+            siblings_to_insert = []
+            regular_package_set = set(regular_packages)  # For fast lookup and removal
 
-            # Insert siblings of deadline packages into the prioritized route
             for index, stop in enumerate(prioritized_route):
                 siblings = getattr(stop, 'packages_at_same_address', [])
+                # If there are siblings, queue them for insertion
                 if siblings:
                     for sid in siblings:
                         sibling = self.packages[sid]
-                        # If sibling is in regular packages, insert it right after the deadline package
-                        if sibling and sibling in regular_packages:
-                            prioritized_route.insert(index+1, sibling)
-                            regular_packages.remove(sibling)
+                        if sibling and sibling in regular_package_set:
+                            siblings_to_insert.append((index + 1, sibling))
+                            regular_package_set.remove(sibling)
+
+            # Insert siblings in reverse to maintain correct indices
+            for index, sibling in reversed(siblings_to_insert):
+                prioritized_route.insert(index, sibling)
+
+            # After sibling insertions, use the updated list of remaining regular packages
+            remaining_regular_packages = list(regular_package_set)
 
             # add the packages that have potential to be fit in between the expedited packages
             potential_package_insertions = self.find_all_feasible_insertions("HUB", prioritized_route,
-                                                                             regular_packages, slack_time)
+                                                                             remaining_regular_packages, slack_time)
 
             base_route, new_slack_time, packages_not_in_route = (self.insert_best_feasible_packages
                                                                  (prioritized_route, potential_package_insertions,
-                                                                  regular_packages, slack_time))
+                                                                  remaining_regular_packages, slack_time))
 
             current_stop = base_route[-1]
 

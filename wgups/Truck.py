@@ -38,6 +38,21 @@ class Truck:
         self.location = 'HUB'  # Current location, starts at HUB
         self.distance_travelled = 0.0  # Total distance traveled in miles
 
+    def set_package_on_truck(self, package: Package) -> None:
+        # Assign package to specific truck (affects delivery tracking)
+        package.status = PackageStatus.IN_ROUTE
+        if self.truck_id == 1:
+            package.truck_carrier = TruckCarrier.TRUCK_1
+        elif self.truck_id == 2:
+            package.truck_carrier = TruckCarrier.TRUCK_2
+        elif self.truck_id == 3:
+            package.truck_carrier = TruckCarrier.TRUCK_3
+        else:
+            print("Invalid Truck ID")
+            return None
+        self.packages_in_truck.append(package)
+        return None
+
     def load_packages(self, packages: List[Package]) -> list:
         """
         Loads packages onto the truck and schedules the first delivery.
@@ -49,43 +64,11 @@ class Truck:
         :return: The queue of packages now on the truck
         """
         for package in packages:
-            package.set_status(PackageStatus.IN_ROUTE)
-            # Assign package to specific truck (affects delivery tracking)
-            if self.truck_id == 1:
-                package.set_truck(TruckCarrier.TRUCK_1)
-            elif self.truck_id == 2:
-                package.set_truck(TruckCarrier.TRUCK_2)
-            elif self.truck_id == 3:
-                package.set_truck(TruckCarrier.TRUCK_3)
-            else:
-                print("Invalid Truck ID")
-                break
-            package.set_departure_time(self.clock.now())  # Record when truck left HUB
-            self.packages_in_truck.append(package)
-
+            self.set_package_on_truck(package)
+            package.departure_time = self.clock.now()  # Record when truck left HUB
         # Schedule the first delivery to start the delivery sequence
         self.clock.schedule_event(self.clock.now(), self.deliver_package, 0)
         return self.packages_in_truck
-
-    def add_package(self, package: Package) -> None:
-        """
-        Adds a single package to the truck without starting delivery.
-        
-        This is used for adding packages to an already loaded truck.
-        
-        :param package: The package to add to the truck
-        """
-        package.set_status(PackageStatus.IN_ROUTE)
-        # Assign package to specific truck (affects delivery tracking)
-        if self.truck_id == 1:
-            package.set_truck(TruckCarrier.TRUCK_1)
-        elif self.truck_id == 2:
-            package.set_truck(TruckCarrier.TRUCK_2)
-        elif self.truck_id == 3:
-            package.set_truck(TruckCarrier.TRUCK_3)
-        else:
-            print("Invalid Truck ID")
-        self.packages_in_truck.append(package)
 
     def deliver_package(self, index: int = 0) -> None:
         """
@@ -107,15 +90,15 @@ class Truck:
 
         package = self.packages_in_truck[index]
         # Calculate distance and travel time to package destination
-        dist = self.distance_map.get_distance(self.location, package.address_w_zip)
+        dist = self.distance_map.get_distance(self.location, package.address)
         self.distance_travelled += dist
         travel_time = timedelta(hours=dist / 18.0)  # 18 mph average speed
         delivery_time = self.clock.now() + travel_time
-        self.location = package.address_w_zip  # Update truck location
+        self.location = package.address  # Update truck location
 
         # Mark package as delivered and record delivery time
-        package.set_status(PackageStatus.DELIVERED)
-        package.set_delivery_time(delivery_time)
+        package.status = PackageStatus.DELIVERED
+        package.delivery_time = delivery_time
         
         # Check if package missed its deadline
         if package.deadline and package.delivery_time > package.deadline:
@@ -129,7 +112,7 @@ class Truck:
             self.deliver_package, index + 1
         )
         print(
-            f"[{delivery_time.strftime('%H:%M')}] (scheduled) Truck {self.truck_id} delivered package {package.package_id} to {package.address_w_zip}")
+            f"[{delivery_time.strftime('%H:%M')}] (scheduled) Truck {self.truck_id} delivered package {package.package_id} to {package.address}")
 
     def return_to_hub(self) -> str:
         """
